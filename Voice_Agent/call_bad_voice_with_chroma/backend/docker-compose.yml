@@ -1,0 +1,42 @@
+services:
+#SERVICE 1: BACKEND
+# Used For: FastAPI + agents + scripts
+  backend:
+    build: . #build the docker image aka the Backend
+    ports:
+      - "8080:8000"  # Expose FastAPI on localhost:8080
+    depends_on:
+      chroma:
+        condition: service_started  # Make sure Chroma is fully started
+    env_file:
+      - ../.env
+    volumes:
+      - .:/app   # Mount local code (for hot reload/dev)
+      - ../scripts:/app/scripts
+      - ../models:/app/models
+    command: ["uvicorn", "backend_app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    working_dir: /app
+    environment:
+      - PYTHONPATH=/app
+      - CHROMA_HOST=chroma  # Override for Docker environment
+      - CHROMA_PORT=8000   # Override for Docker environment
+
+#SERVICE 2: CHROMA
+# the chroma service does 
+# not need an explicit docker
+# file because it has it built in
+# USed for: Vector DB, HTTP only, runs as a black box
+  chroma:
+    image: ghcr.io/chroma-core/chroma:latest
+    ports:
+      - "8001:8000"   # Runs Chroma on port 8000 inside container, 8001 on host
+    volumes:
+      - chroma_data:/chroma/chroma
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+    #   interval: 5s
+    #   timeout: 5s
+    #   retries: 5
+
+volumes:
+  chroma_data:

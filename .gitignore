@@ -1,7 +1,26 @@
 # Environment variables and credentials
 .env
+.env.*
+*.env
 token.json
 credentials.json
+**/token.json
+**/credentials.json
+**/secret*
+**/key*
+**/*config*.json
+**/.env*
+
+# Don't ignore UI components for password reset/update
+!**/reset-password/*.tsx
+!**/update-password/*.tsx
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+package-lock.json
 
 # Python
 __pycache__/
@@ -34,6 +53,7 @@ wheels/
 
 # Database files
 qdrant_db/
+**/qdrant_db/
 
 # Miscellaneous
 .DS_Store
@@ -42,3 +62,6 @@ qdrant_db/
 
 # OS specific
 Thumbs.db
+
+# Local Vercel folder
+.vercel
