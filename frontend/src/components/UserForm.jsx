@@ -30,20 +30,8 @@ const UserForm = ({ onSuccess }) => {
       })
       
       if (response.status === 201) {
-        const userId = response.data.user.id;
-        
-        // Store the user ID in localStorage for the OAuth callback
-        localStorage.setItem('userId', userId);
-        
-        // Get OAuth URL for Gmail authentication
-        const authResponse = await axios.get(`${API_URL}/auth/gmail/${userId}`);
-        
-        if (authResponse.data.auth_url) {
-          // The userId is already included in the state parameter by the backend
-          window.location.href = authResponse.data.auth_url;
-        } else {
-          throw new Error('Failed to get authentication URL');
-        }
+        // User created successfully, call the onSuccess callback
+        onSuccess(response.data.user);
       } else {
         throw new Error('Unexpected response from server')
       }
@@ -60,6 +48,7 @@ const UserForm = ({ onSuccess }) => {
         // Generic error
         setError('There was an error saving your information. Please try again.')
       }
+    } finally {
       setIsLoading(false)
     }
   }
@@ -92,7 +81,7 @@ const UserForm = ({ onSuccess }) => {
         
         <div className="mb-4">
           <label className="block text-gray-700 text-sm font-medium mb-1" htmlFor="email">
-            Gmail Address
+            Email Address
           </label>
           <input
             id="email"
@@ -101,8 +90,8 @@ const UserForm = ({ onSuccess }) => {
             {...register('email', { 
               required: 'Email is required',
               pattern: {
-                value: /^[^@]+@gmail\.com$/,
-                message: 'Please enter a valid Gmail address'
+                value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                message: 'Please enter a valid email address'
               }
             })}
           />
@@ -138,7 +127,7 @@ const UserForm = ({ onSuccess }) => {
           className={`w-full py-2 px-4 rounded-md text-white font-medium 
             ${isLoading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'}`}
         >
-          {isLoading ? 'Processing...' : 'Connect Gmail Account'}
+          {isLoading ? 'Processing...' : 'Submit'}
         </button>
       </form>
     </div>

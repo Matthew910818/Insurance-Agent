@@ -1,4 +1,4 @@
-const SuccessMessage = () => {
+const SuccessMessage = ({ user }) => {
   return (
     <div className="bg-white p-6 rounded-lg shadow-md text-center">
       <div className="flex justify-center mb-4">
@@ -21,12 +21,26 @@ const SuccessMessage = () => {
       </div>
       
       <h2 className="text-xl font-semibold text-gray-800 mb-2">
-        Successfully Connected!
+        Registration Successful!
       </h2>
       
       <p className="text-gray-600 mb-6">
-        Your Gmail account has been connected to our service. You'll receive updates via email and SMS.
+        Your information has been successfully saved in our system.
       </p>
+      
+      {user && (
+        <div className="bg-gray-50 p-4 rounded-md mb-6 text-left">
+          <p className="text-sm text-gray-700 mb-1">
+            <span className="font-medium">Name:</span> {user.Name}
+          </p>
+          <p className="text-sm text-gray-700 mb-1">
+            <span className="font-medium">Email:</span> {user['Gmail Account']}
+          </p>
+          <p className="text-sm text-gray-700">
+            <span className="font-medium">Phone:</span> {user['Phone Number']}
+          </p>
+        </div>
+      )}
       
       <div className="border-t border-gray-200 pt-4">
         <p className="text-sm text-gray-500">
