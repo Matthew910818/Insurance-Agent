@@ -3,7 +3,6 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import { body, validationResult } from 'express-validator'
 import supabase from './supabaseClient.js'
-import gmailAuth from './gmailAuth.js'
 
 // Load environment variables
 dotenv.config()
@@ -23,9 +22,7 @@ const validateUserData = [
     .notEmpty()
     .withMessage('Email is required')
     .isEmail()
-    .withMessage('Invalid email format')
-    .matches(/@gmail\.com$/)
-    .withMessage('Email must be a Gmail address'),
+    .withMessage('Invalid email format'),
   body('Phone_Number')
     .trim()
     .notEmpty()
@@ -56,8 +53,7 @@ app.post('/api/users', validateUserData, async (req, res) => {
       .insert([{ 
         Name,
         'Gmail Account': Gmail_Account, 
-        'Phone Number': Phone_Number,
-        is_gmail_connected: false
+        'Phone Number': Phone_Number
       }])
       .select()
 
@@ -81,88 +77,6 @@ app.post('/api/users', validateUserData, async (req, res) => {
     })
   }
 })
-
-// Get Gmail OAuth URL
-app.get('/api/auth/gmail', (req, res) => {
-  try {
-    // Check if Gmail setup is configured
-    const setup = gmailAuth.checkGmailSetup();
-    if (!setup.credentialsExist) {
-      return res.status(500).json({
-        error: 'Gmail API credentials not found',
-        details: `Credentials file not found at ${setup.credentialsPath}`
-      });
-    }
-
-    // Generate authentication URL
-    const authUrl = gmailAuth.getAuthUrl();
-    
-    return res.status(200).json({
-      auth_url: authUrl
-    });
-  } catch (err) {
-    console.error('Error getting auth URL:', err);
-    return res.status(500).json({
-      error: 'Failed to generate authentication URL',
-      details: err.message
-    });
-  }
-});
-
-// Handle OAuth callback
-app.get('/api/auth/callback', async (req, res) => {
-  const { code, state } = req.query;
-  const userId = state; // The user ID should be passed in the state parameter
-
-  if (!code) {
-    return res.status(400).json({
-      error: 'Missing authorization code',
-      details: 'No code was received from Google OAuth'
-    });
-  }
-
-  try {
-    // Exchange code for tokens
-    const tokens = await gmailAuth.getTokensFromCode(code);
-    
-    // If state contains user ID, save tokens to user record
-    if (userId) {
-      await gmailAuth.saveUserTokens(userId, tokens, supabase);
-    }
-
-    // Redirect to frontend success page
-    return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth-success`);
-  } catch (err) {
-    console.error('Error in OAuth callback:', err);
-    return res.status(500).json({
-      error: 'Authentication failed',
-      details: err.message
-    });
-  }
-});
-
-// Run Gmail agent for a user
-app.post('/api/run-agent/:userId', async (req, res) => {
-  const { userId } = req.params;
-
-  if (!userId) {
-    return res.status(400).json({
-      error: 'Missing user ID',
-      details: 'User ID is required to run the Gmail agent'
-    });
-  }
-
-  try {
-    const result = await gmailAuth.runGmailAgent(userId, supabase);
-    return res.status(200).json(result);
-  } catch (err) {
-    console.error('Error running Gmail agent:', err);
-    return res.status(500).json({
-      error: 'Failed to run Gmail agent',
-      details: err.message
-    });
-  }
-});
 
 // Start the server
 app.listen(PORT, () => {
