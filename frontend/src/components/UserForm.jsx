@@ -3,7 +3,9 @@ import { useForm } from 'react-hook-form'
 import axios from 'axios'
 
 // Get API URL from environment variables or use default for local development
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
+// Ensure the API_URL always ends with /api
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = BASE_URL.endsWith('/api') ? BASE_URL : `${BASE_URL}/api`;
 
 const UserForm = ({ onSuccess }) => {
   const [isLoading, setIsLoading] = useState(false)
@@ -34,13 +36,11 @@ const UserForm = ({ onSuccess }) => {
         localStorage.setItem('userId', userId);
         
         // Get OAuth URL for Gmail authentication
-        const authResponse = await axios.get(`${API_URL}/auth/gmail`);
+        const authResponse = await axios.get(`${API_URL}/auth/gmail/${userId}`);
         
         if (authResponse.data.auth_url) {
-          // Redirect to Google OAuth page with user ID in the state parameter
-          const authUrl = new URL(authResponse.data.auth_url);
-          authUrl.searchParams.set('state', userId);
-          window.location.href = authUrl.toString();
+          // The userId is already included in the state parameter by the backend
+          window.location.href = authResponse.data.auth_url;
         } else {
           throw new Error('Failed to get authentication URL');
         }
