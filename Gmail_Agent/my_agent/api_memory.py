@@ -18,6 +18,7 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Qdrant
 from langchain_core.documents import Document
 from dotenv import load_dotenv
+from openai import OpenAI
 
 # Load environment variables
 load_dotenv()
@@ -92,6 +93,12 @@ class CreateMemoryResponse(BaseModel):
     success: bool
     message: str
     memory_ids: List[str]
+
+class EmailInput(BaseModel):
+    email: dict
+
+class ResponseOutput(BaseModel):
+    draft: str
 
 @app.get("/")
 async def root():
@@ -393,6 +400,63 @@ async def get_all_memories():
             "count": 0,
             "status": f"error: {str(e)}"
         }
+
+@app.post("/generate-response", response_model=ResponseOutput)
+async def generate_response(email_input: EmailInput):
+    """
+    Generate a response to an insurance-related email.
+    """
+    try:
+        # Initialize OpenAI client
+        openai_api_key = os.getenv("OPENAI_API_KEY")
+        if not openai_api_key:
+            raise HTTPException(status_code=500, detail="OpenAI API key not configured")
+        
+        client = OpenAI(api_key=openai_api_key)
+        
+        # Extract email details
+        subject = email_input.email.get("subject", "No Subject")
+        body = email_input.email.get("body", "")
+        sender = email_input.email.get("sender", "")
+        
+        # Prepare prompt for the AI
+        prompt = f"""
+        You are an AI assistant specializing in insurance matters. You need to help draft a response to the following email:
+        
+        From: {sender}
+        Subject: {subject}
+        
+        {body}
+        
+        Draft a professional and helpful response addressing the insurance-related issues in this email.
+        The response should:
+        1. Be polite and professional
+        2. Address the specific insurance matters mentioned
+        3. Provide clear information about policy coverage where applicable
+        4. Request any additional information if needed
+        5. Mention relevant laws or regulations if appropriate
+        
+        Write the response in first person, as if from the email recipient.
+        """
+        
+        # Generate response with OpenAI
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are an AI assistant specializing in insurance matters."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=1000
+        )
+        
+        # Extract the generated draft
+        draft = response.choices[0].message.content.strip()
+        
+        return {"draft": draft}
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating response: {str(e)}")
 
 # If running as a script, start an ASGI server
 if __name__ == "__main__":
