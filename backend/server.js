@@ -4,6 +4,7 @@ import dotenv from 'dotenv'
 import { body, validationResult } from 'express-validator'
 import supabase from './supabaseClient.js'
 import axios from 'axios'
+import gmailService from './gmailService.js'
 
 // Load environment variables
 dotenv.config()
@@ -220,108 +221,102 @@ app.post('/api/auth/gmail/callback', async (req, res) => {
 // Get insurance-related emails
 app.get('/api/emails/insurance', async (req, res) => {
   try {
-    // Mock data - replace with actual API call to Gmail agent when ready
-    const mockEmails = [
-      {
-        id: 'email1',
-        sender: 'insurance@example.com',
-        subject: 'Your Insurance Claim #12345',
-        date: new Date().toISOString(),
-        snippet: 'We are writing regarding your recent claim submission...',
-        body: 'We are writing regarding your recent claim submission for medical services. After careful review, we have determined that...'
-      },
-      {
-        id: 'email2',
-        sender: 'claims@healthcare.org',
-        subject: 'Update on Insurance Authorization Request',
-        date: new Date(Date.now() - 24*60*60*1000).toISOString(),
-        snippet: 'Your request for authorization for the procedure...',
-        body: 'Your request for authorization for the procedure scheduled on August 15 requires additional documentation. Please provide the following:'
-      }
-    ]
+    // Get user ID from query params
+    const userId = req.query.user_id;
+    
+    if (!userId) {
+      return res.status(400).json({
+        error: 'User ID is required'
+      });
+    }
+    
+    // Check if user exists and has Gmail connected
+    const { data, error } = await supabase
+      .from('User Info')
+      .select('is_gmail_connected')
+      .eq('id', userId)
+      .single();
+    
+    if (error || !data) {
+      return res.status(404).json({
+        error: 'User not found'
+      });
+    }
+    
+    if (!data.is_gmail_connected) {
+      return res.status(400).json({
+        error: 'Gmail account not connected for this user',
+        needsConnection: true
+      });
+    }
+    
+    // Fetch insurance-related emails
+    const emails = await gmailService.getInsuranceEmails(userId);
     
     return res.status(200).json({
-      emails: mockEmails
-    })
+      emails: emails
+    });
   } catch (err) {
-    console.error('Error fetching insurance emails:', err)
+    console.error('Error fetching insurance emails:', err);
     return res.status(500).json({
       error: 'Failed to retrieve insurance emails',
       details: err.message
-    })
+    });
   }
-})
+});
 
 // Get draft response for an email
 app.post('/api/emails/draft-response', async (req, res) => {
   try {
-    const { email_id } = req.body
+    const { email_id, user_id } = req.body;
     
-    if (!email_id) {
+    if (!email_id || !user_id) {
       return res.status(400).json({
-        error: 'Email ID is required'
-      })
+        error: 'Email ID and User ID are required'
+      });
     }
     
-    // Mock response - replace with actual API call to Gmail agent when ready
-    const mockDraft = `Dear Insurance Provider,
-
-Thank you for your message regarding Claim #12345. I am writing to address several concerns with the recent claim denial.
-
-POLICY DETAILS
-Based on my policy (Group #8787, Member ID #565656), this procedure should be covered under Section 4.2 which clearly states that diagnostic procedures related to chronic conditions are covered at 80% after the deductible has been met.
-
-SUPPORTING DOCUMENTATION
-My medical records from Dr. Johnson, which were submitted with the original claim, confirm the medical necessity of this procedure. Additionally, I have met my annual deductible of $1,500 as of March 15, 2023.
-
-APPEAL REQUEST
-I formally request that this claim be reprocessed according to my policy benefits. If additional information is needed, please specify exactly what documentation is required.
-
-I would appreciate a written response to this appeal within 30 days, as required by state insurance regulations. If you have any questions, I can be reached at (555) 123-4567.
-
-Thank you for your prompt attention to this matter.
-
-Sincerely,
-John Smith`
+    // Generate draft response
+    const draft = await gmailService.generateDraftResponse(email_id, user_id);
     
     return res.status(200).json({
-      draft: mockDraft
-    })
+      draft: draft
+    });
   } catch (err) {
-    console.error('Error generating draft response:', err)
+    console.error('Error generating draft response:', err);
     return res.status(500).json({
       error: 'Failed to generate draft response',
       details: err.message
-    })
+    });
   }
-})
+});
 
 // Send email response after user confirmation
 app.post('/api/emails/send-response', async (req, res) => {
   try {
-    const { email_id, response } = req.body
+    const { email_id, response, user_id, thread_id } = req.body;
     
-    if (!email_id || !response) {
+    if (!email_id || !response || !user_id || !thread_id) {
       return res.status(400).json({
-        error: 'Email ID and response are required'
-      })
+        error: 'Email ID, User ID, Thread ID and response are required'
+      });
     }
     
-    // Here we would send the confirmed response to the Gmail agent
-    // For now, just return success
+    // Send email response
+    await gmailService.sendEmailResponse(user_id, thread_id, response);
     
     return res.status(200).json({
       success: true,
       message: 'Email response sent successfully'
-    })
+    });
   } catch (err) {
-    console.error('Error sending email response:', err)
+    console.error('Error sending email response:', err);
     return res.status(500).json({
       error: 'Failed to send email response',
       details: err.message
-    })
+    });
   }
-})
+});
 
 // Start the server
 app.listen(PORT, () => {

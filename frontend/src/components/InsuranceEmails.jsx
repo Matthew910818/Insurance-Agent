@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import EmailDraftReview from './EmailDraftReview'
+import { useNavigate } from 'react-router-dom'
 
 // Get API URL from environment variables or use default for local development
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -13,34 +14,65 @@ const InsuranceEmails = () => {
   const [selectedEmail, setSelectedEmail] = useState(null)
   const [draftResponse, setDraftResponse] = useState(null)
   const [showDraftReview, setShowDraftReview] = useState(false)
+  const [user, setUser] = useState(null)
+  const navigate = useNavigate()
 
   useEffect(() => {
-    fetchInsuranceEmails()
+    // Get user data from localStorage if available
+    const storedUser = localStorage.getItem('userData')
+    if (storedUser) {
+      try {
+        const userData = JSON.parse(storedUser)
+        setUser(userData)
+        fetchInsuranceEmails(userData.id)
+      } catch (err) {
+        console.error('Error parsing user data:', err)
+        setError('Unable to retrieve user information. Please sign in again.')
+      }
+    } else {
+      setError('Please sign in to view your emails')
+      setLoading(false)
+    }
   }, [])
 
-  const fetchInsuranceEmails = async () => {
+  const fetchInsuranceEmails = async (userId) => {
     setLoading(true)
     setError(null)
     
     try {
-      const response = await axios.get(`${API_URL}/emails/insurance`)
+      const response = await axios.get(`${API_URL}/emails/insurance`, {
+        params: { user_id: userId }
+      })
+      
       setEmails(response.data.emails || [])
     } catch (err) {
       console.error('Error fetching insurance emails:', err)
-      setError('Failed to load insurance emails. Please try again later.')
+      
+      // Handle specific error cases
+      if (err.response && err.response.data.needsConnection) {
+        setError('Your Gmail account is not connected. Please go back and connect your account.')
+      } else {
+        setError('Failed to load insurance emails. Please try again later.')
+      }
     } finally {
       setLoading(false)
     }
   }
 
   const handleEmailSelect = async (email) => {
+    if (!user || !user.id) {
+      setError('User information not available. Please sign in again.')
+      return
+    }
+    
     setSelectedEmail(email)
     setDraftResponse(null)
     
     try {
       // Request draft response for the selected email
       const response = await axios.post(`${API_URL}/emails/draft-response`, {
-        email_id: email.id
+        email_id: email.id,
+        user_id: user.id
       })
       
       setDraftResponse(response.data.draft || null)
@@ -52,12 +84,14 @@ const InsuranceEmails = () => {
   }
 
   const handleSendResponse = async () => {
-    if (!selectedEmail || !draftResponse) return
+    if (!selectedEmail || !draftResponse || !user || !user.id) return
     
     try {
       await axios.post(`${API_URL}/emails/send-response`, {
         email_id: selectedEmail.id,
-        response: draftResponse
+        thread_id: selectedEmail.threadId,
+        response: draftResponse,
+        user_id: user.id
       })
       
       // Reset state after sending
@@ -66,7 +100,7 @@ const InsuranceEmails = () => {
       setDraftResponse(null)
       
       // Refresh emails list
-      fetchInsuranceEmails()
+      fetchInsuranceEmails(user.id)
     } catch (err) {
       console.error('Error sending email response:', err)
       setError('Failed to send the response. Please try again.')
@@ -75,6 +109,10 @@ const InsuranceEmails = () => {
 
   const handleEditDraft = (updatedDraft) => {
     setDraftResponse(updatedDraft)
+  }
+
+  const handleConnectGmail = () => {
+    navigate('/')
   }
 
   if (loading) {
@@ -94,6 +132,14 @@ const InsuranceEmails = () => {
         {error && (
           <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
             {error}
+            {error.includes('not connected') && (
+              <button
+                onClick={handleConnectGmail}
+                className="ml-2 px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+              >
+                Connect Gmail
+              </button>
+            )}
           </div>
         )}
         
@@ -132,7 +178,7 @@ const InsuranceEmails = () => {
             
             <div className="mt-6 flex justify-center">
               <button
-                onClick={fetchInsuranceEmails}
+                onClick={() => user && fetchInsuranceEmails(user.id)}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 Refresh Emails
