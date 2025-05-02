@@ -35,15 +35,32 @@ const InsuranceEmails = () => {
     }
   }, [])
 
+  // Add a debug function to check user data
+  const debugUserData = () => {
+    console.log('Current user state:', user);
+    console.log('LocalStorage userData:', localStorage.getItem('userData'));
+    try {
+      const userData = JSON.parse(localStorage.getItem('userData'));
+      console.log('Parsed user data:', userData);
+      if (userData && userData.id) {
+        fetchInsuranceEmails(userData.id);
+      }
+    } catch (err) {
+      console.error('Error parsing stored user data:', err);
+    }
+  }
+
   const fetchInsuranceEmails = async (userId) => {
     setLoading(true)
     setError(null)
     
     try {
+      console.log('Fetching emails for user ID:', userId);
       const response = await axios.get(`${API_URL}/emails/insurance`, {
         params: { user_id: userId }
       })
       
+      console.log('Email response:', response.data);
       setEmails(response.data.emails || [])
     } catch (err) {
       console.error('Error fetching insurance emails:', err)
@@ -176,12 +193,18 @@ const InsuranceEmails = () => {
               </div>
             )}
             
-            <div className="mt-6 flex justify-center">
+            <div className="mt-6 flex justify-center space-x-4">
               <button
                 onClick={() => user && fetchInsuranceEmails(user.id)}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 Refresh Emails
+              </button>
+              <button
+                onClick={debugUserData}
+                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500"
+              >
+                Debug User Data
               </button>
             </div>
           </>

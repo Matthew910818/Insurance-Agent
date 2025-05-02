@@ -218,6 +218,43 @@ app.post('/api/auth/gmail/callback', async (req, res) => {
   }
 })
 
+// Add this new endpoint to get user by ID
+app.get('/api/users/:id', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    
+    if (!userId) {
+      return res.status(400).json({
+        error: 'User ID is required'
+      });
+    }
+    
+    // Get user data from Supabase
+    const { data, error } = await supabase
+      .from('User Info')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    
+    if (error) {
+      console.error('Error fetching user:', error);
+      return res.status(404).json({
+        error: 'User not found'
+      });
+    }
+    
+    return res.status(200).json({
+      user: data
+    });
+  } catch (err) {
+    console.error('Error fetching user:', err);
+    return res.status(500).json({
+      error: 'Failed to retrieve user data',
+      details: err.message
+    });
+  }
+});
+
 // Get insurance-related emails
 app.get('/api/emails/insurance', async (req, res) => {
   try {

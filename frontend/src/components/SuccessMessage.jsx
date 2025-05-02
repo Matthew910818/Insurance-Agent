@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 
@@ -6,6 +6,14 @@ const SuccessMessage = ({ user }) => {
   const [isConnecting, setIsConnecting] = useState(false)
   const [error, setError] = useState(null)
   const navigate = useNavigate()
+  
+  // Save user data to localStorage when component mounts or user changes
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('userData', JSON.stringify(user))
+      console.log('User data saved to localStorage:', user)
+    }
+  }, [user])
   
   const handleConnectGmail = async () => {
     setIsConnecting(true)

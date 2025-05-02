@@ -33,6 +33,25 @@ const AuthCallback = () => {
         
         if (response.data.success) {
           setStatus('success')
+          
+          // Decode state to get user ID
+          try {
+            const stateData = JSON.parse(Buffer.from(state, 'base64').toString())
+            const { user_id } = stateData
+            
+            if (user_id) {
+              // Get user data from supabase
+              const userResponse = await axios.get(`${apiUrl}/api/users/${user_id}`)
+              if (userResponse.data.user) {
+                // Save user data to localStorage
+                localStorage.setItem('userData', JSON.stringify(userResponse.data.user))
+              }
+            }
+          } catch (err) {
+            console.error('Error parsing state or fetching user data:', err)
+            // Continue anyway as the authentication was successful
+          }
+          
           // Wait a moment then redirect to the insurance emails page
           setTimeout(() => {
             navigate('/insurance-emails')
