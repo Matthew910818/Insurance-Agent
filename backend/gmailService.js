@@ -171,18 +171,22 @@ export async function generateDraftResponse(emailId, userId) {
     const accessToken = await getAccessToken(userId);
     const emailDetails = await getEmailDetails(emailId, accessToken);
     
-    // For now, call your existing Gmail agent logic
-    // Later, integrate your Gmail_Agent system properly
-    // This is a placeholder for the actual agent response generation
-    const response = await axios.post('http://localhost:5000/api/generate-response', {
+    // Get API URL from environment or use default
+    const API_URL = process.env.API_URL || 'http://localhost:8000/api';
+    
+    // Call the backend endpoint that interfaces with the Gmail Agent API
+    const response = await axios.post(`${API_URL}/agent/generate-response`, {
       email: emailDetails
     });
     
-    return response.data.draft || await generateMockResponse(emailDetails);
+    if (response.data && response.data.draft) {
+      return response.data.draft;
+    } else {
+      throw new Error('No draft response generated');
+    }
   } catch (error) {
     console.error('Error generating draft response:', error);
-    // Fallback to mock response if the agent is not available
-    return generateMockResponse(emailDetails);
+    throw error;
   }
 }
 
