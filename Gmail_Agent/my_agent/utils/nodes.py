@@ -914,5 +914,65 @@ def email_polling_router(state: AgentState):
     print("Email polling complete, no new emails found")
     return '__end__'
 
+def send_confirmed_email(draft_data):
+    """
+    Send an email using the draft data after user confirmation from the frontend.
+    
+    Args:
+        draft_data (dict): Dictionary containing email draft details
+            - to: Recipient email address
+            - subject: Email subject
+            - message_text: Email body text
+            - thread_id: Gmail thread ID for replies
+            - message_id: Message ID for replies
+            
+    Returns:
+        dict: Response with success status and details
+    """
+    try:
+        to = draft_data.get('to')
+        subject = draft_data.get('subject')
+        message_text = draft_data.get('message_text')
+        thread_id = draft_data.get('thread_id')
+        message_id = draft_data.get('message_id')
+        
+        print(f"\n{'='*80}")
+        print(f"SENDING CONFIRMED EMAIL RESPONSE")
+        print(f"{'='*80}")
+        print(f"To: {to}")
+        print(f"Subject: {subject}")
+        print(f"Thread ID: {thread_id}")
+        print(f"{'='*80}\n")
+        
+        if not service:
+            return {
+                "success": False,
+                "error": "Gmail service not initialized"
+            }
+        
+        send_email(
+            service=service, 
+            to=to, 
+            subject=subject, 
+            message_text=message_text,
+            thread_id=thread_id,
+            message_id=message_id
+        )
+        
+        return {
+            "success": True,
+            "message": f"Email sent successfully to {to}"
+        }
+        
+    except Exception as e:
+        import traceback
+        print(f"Error sending confirmed email: {e}")
+        print(traceback.format_exc())
+        
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
     
     
