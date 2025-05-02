@@ -19,9 +19,9 @@ const EmailDraftReview = ({ email, draft, onSend, onEdit, onCancel }) => {
   }
   
   return (
-    <div className="bg-white rounded-lg border border-gray-200">
+    <div className="bg-white rounded-lg border border-gray-200 w-full">
       <div className="p-4 border-b border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-800">Review Draft Response</h3>
+        <h3 className="text-xl font-semibold text-gray-800">Review Draft Response</h3>
       </div>
       
       <div className="p-4 bg-gray-50 border-b border-gray-200">
@@ -33,11 +33,13 @@ const EmailDraftReview = ({ email, draft, onSend, onEdit, onCancel }) => {
         </div>
       </div>
       
-      <div className="p-4">
-        <div className="mb-4">
+      <div className="p-6">
+        <div className="mb-6">
           <h4 className="font-medium text-gray-700 mb-2">Original Email:</h4>
-          <div className="bg-gray-50 p-3 rounded-md text-gray-600 text-sm max-h-40 overflow-y-auto">
-            {email.body || email.snippet}
+          <div className="bg-gray-50 p-4 rounded-md text-gray-600 max-h-48 overflow-y-auto border border-gray-200">
+            <pre className="whitespace-pre-wrap font-sans text-sm">
+              {email.body || email.snippet}
+            </pre>
           </div>
         </div>
         
@@ -47,7 +49,7 @@ const EmailDraftReview = ({ email, draft, onSend, onEdit, onCancel }) => {
             {!isEditing && (
               <button 
                 onClick={handleEditClick}
-                className="text-sm text-blue-600 hover:text-blue-800"
+                className="px-3 py-1 text-sm text-blue-600 hover:text-blue-800 border border-blue-200 rounded-md hover:bg-blue-50"
               >
                 Edit Draft
               </button>
@@ -59,10 +61,10 @@ const EmailDraftReview = ({ email, draft, onSend, onEdit, onCancel }) => {
               <textarea
                 value={editedDraft}
                 onChange={(e) => setEditedDraft(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-md h-64 text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full p-4 border border-gray-300 rounded-md h-64 text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-sans"
               />
               
-              <div className="flex justify-end space-x-3 mt-3">
+              <div className="flex justify-end space-x-3 mt-4">
                 <button
                   onClick={handleCancelEdit}
                   className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
@@ -78,8 +80,10 @@ const EmailDraftReview = ({ email, draft, onSend, onEdit, onCancel }) => {
               </div>
             </>
           ) : (
-            <div className="bg-white border border-gray-200 p-3 rounded-md text-gray-700 whitespace-pre-wrap min-h-64">
-              {draft}
+            <div className="bg-white border border-gray-200 p-4 rounded-md text-gray-700 min-h-48">
+              <pre className="whitespace-pre-wrap font-sans">
+                {draft}
+              </pre>
             </div>
           )}
         </div>
@@ -95,7 +99,7 @@ const EmailDraftReview = ({ email, draft, onSend, onEdit, onCancel }) => {
         
         <button
           onClick={onSend}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           Send Response
         </button>

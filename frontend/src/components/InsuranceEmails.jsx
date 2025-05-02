@@ -142,7 +142,7 @@ const InsuranceEmails = () => {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden">
+    <div className="bg-white rounded-lg shadow-md overflow-hidden w-full">
       <div className="p-6">
         <h2 className="text-2xl font-semibold text-gray-800 mb-4">Insurance Emails</h2>
         
@@ -175,19 +175,19 @@ const InsuranceEmails = () => {
                 <p className="text-gray-500">No insurance emails found.</p>
               </div>
             ) : (
-              <div className="divide-y divide-gray-200">
+              <div className="divide-y divide-gray-200 border border-gray-200 rounded-lg overflow-hidden">
                 {emails.map((email) => (
                   <div 
                     key={email.id} 
-                    className="py-4 cursor-pointer hover:bg-gray-50"
+                    className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
                     onClick={() => handleEmailSelect(email)}
                   >
-                    <div className="flex justify-between">
-                      <p className="font-medium text-gray-800">{email.sender}</p>
+                    <div className="flex flex-wrap justify-between items-center mb-2">
+                      <p className="font-medium text-gray-800 mr-4">{email.sender}</p>
                       <p className="text-sm text-gray-500">{new Date(email.date).toLocaleString()}</p>
                     </div>
-                    <p className="text-gray-700 font-medium mt-1">{email.subject}</p>
-                    <p className="text-gray-600 mt-1 text-sm line-clamp-2">{email.snippet}</p>
+                    <p className="text-gray-800 font-medium mb-2">{email.subject}</p>
+                    <p className="text-gray-600 text-sm line-clamp-2">{email.snippet}</p>
                   </div>
                 ))}
               </div>
