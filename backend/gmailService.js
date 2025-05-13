@@ -230,108 +230,30 @@ async function initializeAgent() {
     const __dirname = dirname(__filename);
     const runAgentPath = join(__dirname, 'gmail_agent', 'runAgent.js');
     
-    const runAgentContent = `
-import { AgentState } from './utils/state.js';
-import { graph } from './agent.js';
-
-// Function to run the agent workflow
-export default async function runAgentWorkflow(initialState, accessToken) {
-  try {
-    // Store the access token in global space for the agent to use
-    global.gmailAccessToken = accessToken;
-    
-    // Run the agent with the provided initial state
-    const events = [];
-    
-    for await (const event of graph.stream(initialState)) {
-      events.push(event);
-      console.log(\`Agent event: \${event.event_type}\`);
-      
-      // If we've generated a response, we can stop
-      if (event.event_type === 'on_node_end' && 
-          event.node_name === 'generate_response' && 
-          event.state.llm_output) {
-        break;
-      }
+    // Check if necessary files exist and create directory structure if needed
+    try {
+      await fs.mkdir(join(__dirname, 'gmail_agent'), { recursive: true });
+      await fs.mkdir(join(__dirname, 'gmail_agent', 'utils'), { recursive: true });
+    } catch (err) {
+      console.log("Directories already exist:", err.message);
     }
     
-    // Return the final state
-    return events[events.length - 1].state;
-  } catch (error) {
-    console.error('Error running agent workflow:', error);
-    throw error;
-  }
-}
-`;
-    
-    await fs.writeFile(runAgentPath, runAgentContent);
-    
-    // Modify agent.py to work with ESM
-    const agentPath = join(__dirname, 'gmail_agent', 'agent.js');
-    const agentContent = `
-import { StateGraph } from 'langgraph';
-import { check_for_new_emails, classify_email, generate_response, send_email_response, flag_email, 
-         new_email_router, classification_router, agent, research, memory_injection,
-         evaluate_response_quality, response_evaluation_router, email_polling_router } from './utils/nodes.js';
-import { AgentState } from './utils/state.js';
-
-const workflow = new StateGraph(AgentState);
-
-workflow.addNode('agent', agent);
-workflow.addNode('check_emails', check_for_new_emails);
-workflow.addNode('classify_email', classify_email);
-workflow.addNode('memory_injection', memory_injection);
-workflow.addNode('generate_response', generate_response);
-workflow.addNode('evaluate', evaluate_response_quality);
-workflow.addNode('research', research);
-workflow.addNode('send_response', send_email_response);
-workflow.addNode('flag_email', flag_email);
-
-workflow.addConditionalEdges('check_emails', email_polling_router, {
-  'classify_email': 'classify_email',
-  'check_emails': 'check_emails', 
-  '__end__': END
-});
-
-workflow.addConditionalEdges('classify_email', classification_router, {
-  'research': 'research',
-  'flag_email': 'flag_email'
-});
-
-workflow.addConditionalEdges('generate_response', response_evaluation_router, {
-  'evaluate': 'evaluate',
-  'send_response': 'send_response'
-});
-
-workflow.addConditionalEdges('evaluate', response_evaluation_router, {
-  'evaluate': 'evaluate',
-  'research': 'research',
-  'send_response': 'send_response'
-});
-
-workflow.addEdge('agent', 'check_emails');
-workflow.addEdge('research', 'memory_injection');
-workflow.addEdge('memory_injection', 'generate_response');
-workflow.addEdge('send_response', 'flag_email');
-workflow.addEdge('flag_email', 'check_emails'); 
-workflow.setEntryPoint('agent');
-
-console.log("Gmail Agent workflow initialized");
-
-export const graph = workflow.compile();
-`;
-    
-    // Create a new version compatible with ESM
-    await fs.writeFile(agentPath, agentContent);
-    
-    // Update utils/nodes.js to use the access token from global space
+    // Update utils/nodes.js to use the access token from global space if it exists
     const nodesPath = join(__dirname, 'gmail_agent', 'utils', 'nodes.js');
-    const nodesContent = await fs.readFile(nodesPath, 'utf8');
-    const updatedNodesContent = nodesContent.replace(
-      /const service = getGmailService\(\)/g, 
-      'const service = getGmailService(global.gmailAccessToken)'
-    );
-    await fs.writeFile(nodesPath, updatedNodesContent);
+    try {
+      const nodesExists = await fs.access(nodesPath).then(() => true).catch(() => false);
+      
+      if (nodesExists) {
+        const nodesContent = await fs.readFile(nodesPath, 'utf8');
+        const updatedNodesContent = nodesContent.replace(
+          /const service = getGmailService\(\)/g, 
+          'const service = getGmailService(global.gmailAccessToken)'
+        );
+        await fs.writeFile(nodesPath, updatedNodesContent);
+      }
+    } catch (err) {
+      console.log("Could not update nodes.js, will be created by installation process:", err.message);
+    }
     
     // Install required packages
     console.log("Installing required packages for Gmail Agent...");
