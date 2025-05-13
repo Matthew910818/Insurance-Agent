@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "postinstall": "cd gmail_agent && npm install --legacy-peer-deps"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.38.1",
@@ -16,9 +17,7 @@
     "express-validator": "^7.0.1",
     "axios": "^1.4.0",
     "googleapis": "^128.0.0",
-    "langgraph": "^0.0.19",
-    "langchain": "^0.1.1",
-    "google-auth-library": "^9.4.1"
+    "google-auth-library": "^8.9.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

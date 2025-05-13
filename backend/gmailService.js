@@ -337,7 +337,7 @@ export const graph = workflow.compile();
     console.log("Installing required packages for Gmail Agent...");
     
     try {
-      execSync('cd ' + join(__dirname, 'gmail_agent') + ' && npm install langgraph google-auth-library @google-cloud/local-auth googleapis', { stdio: 'inherit' });
+      execSync('cd ' + join(__dirname, 'gmail_agent') + ' && npm install --legacy-peer-deps', { stdio: 'inherit' });
       console.log("Packages installed successfully");
     } catch (error) {
       console.error("Failed to install packages:", error);

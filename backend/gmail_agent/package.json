@@ -4,11 +4,14 @@
   "description": "LangGraph Gmail Agent adapted for JavaScript",
   "main": "index.js",
   "type": "module",
+  "scripts": {
+    "install": "npm install --legacy-peer-deps"
+  },
   "dependencies": {
     "langgraph": "^0.0.19",
     "langchain": "^0.1.1",
     "googleapis": "^128.0.0",
-    "google-auth-library": "^9.4.1",
+    "google-auth-library": "^8.9.0",
     "@google-cloud/local-auth": "^2.1.0"
   }
 } 
