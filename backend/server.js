@@ -347,15 +347,23 @@ app.post('/api/agent/generate-response', async (req, res) => {
     // Get the user's access token
     const accessToken = await gmailService.getAccessToken(user_id);
     
-    // Prepare the payload for the external Gmail Agent
-    const payload = {
-      email_id: email.id,
-      user_gmail_token: accessToken
-    };
-    
     // Call the external Python Gmail Agent
     try {
-      const agentResponse = await axios.post(`${GMAIL_AGENT_API_URL}/generate-response`, payload);
+      // Prepare the payload according to EmailInput format expected by Python FastAPI endpoint
+      const agentPayload = {
+        email: {
+          subject: email.subject,
+          body: email.body,
+          sender: email.sender,
+          id: email.id,
+          threadId: email.threadId
+        }
+      };
+      
+      console.log(`Sending payload to Python Gmail Agent:`, JSON.stringify(agentPayload).substring(0, 200) + '...');
+      
+      // This line was missing - making the actual API call to the Python agent
+      const agentResponse = await axios.post(`${GMAIL_AGENT_API_URL}/generate-response`, agentPayload);
       
       return res.status(200).json({
         draft: agentResponse.data

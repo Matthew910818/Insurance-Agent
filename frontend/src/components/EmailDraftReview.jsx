@@ -1,8 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 const EmailDraftReview = ({ email, draft, onSend, onEdit, onCancel }) => {
   const [isEditing, setIsEditing] = useState(false)
-  const [editedDraft, setEditedDraft] = useState(draft)
+  const [editedDraft, setEditedDraft] = useState(draft || '')
+  
+  // Update editedDraft when draft prop changes
+  useEffect(() => {
+    setEditedDraft(draft || '')
+  }, [draft])
   
   const handleEditClick = () => {
     setIsEditing(true)
@@ -14,7 +19,7 @@ const EmailDraftReview = ({ email, draft, onSend, onEdit, onCancel }) => {
   }
   
   const handleCancelEdit = () => {
-    setEditedDraft(draft)
+    setEditedDraft(draft || '')
     setIsEditing(false)
   }
   
@@ -82,7 +87,7 @@ const EmailDraftReview = ({ email, draft, onSend, onEdit, onCancel }) => {
           ) : (
             <div className="bg-white border border-gray-200 p-4 rounded-md text-gray-700 min-h-48">
               <pre className="whitespace-pre-wrap font-sans">
-                {draft}
+                {draft || 'Loading draft response...'}
               </pre>
             </div>
           )}

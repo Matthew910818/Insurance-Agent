@@ -159,13 +159,13 @@ export async function generateDraftResponse(emailId, userId) {
     
     // Prepare email data for the Python Gmail Agent API
     const emailForAgent = {
-      id: emailDetails.id,
-      threadId: emailDetails.threadId,
-      sender: emailDetails.sender,
-      subject: emailDetails.subject,
-      date: emailDetails.date,
-      body: emailDetails.body,
-      accessToken: accessToken  // Include the access token for the Gmail API
+      email: {
+        subject: emailDetails.subject,
+        body: emailDetails.body,
+        sender: emailDetails.sender,
+        id: emailDetails.id,
+        threadId: emailDetails.threadId
+      }
     };
     
     // Call the external Python Gmail Agent API

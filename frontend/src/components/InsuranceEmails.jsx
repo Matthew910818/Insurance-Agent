@@ -86,13 +86,29 @@ const InsuranceEmails = () => {
     setDraftResponse(null)
     
     try {
+      console.log('Requesting draft response for email:', email.id);
       // Request draft response for the selected email
       const response = await axios.post(`${API_URL}/emails/draft-response`, {
         email_id: email.id,
         user_id: user.id
       })
       
-      setDraftResponse(response.data.draft || null)
+      console.log('Draft response received:', response.data);
+      
+      // Check different possible formats the draft might be returned in
+      let draft = null;
+      if (typeof response.data.draft === 'string') {
+        draft = response.data.draft;
+      } else if (response.data.draft && response.data.draft.body) {
+        draft = response.data.draft.body;
+      } else if (response.data.draft && response.data.draft.draft) {
+        draft = response.data.draft.draft;
+      } else {
+        console.warn('Could not extract draft from response:', response.data);
+        draft = 'Unable to generate a response. Please try again later.';
+      }
+      
+      setDraftResponse(draft)
       setShowDraftReview(true)
     } catch (err) {
       console.error('Error generating draft response:', err)

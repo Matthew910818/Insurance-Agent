@@ -36,8 +36,9 @@ const AuthCallback = () => {
           
           // Decode state to get user ID
           try {
-            const stateData = JSON.parse(Buffer.from(state, 'base64').toString())
-            const { user_id } = stateData
+            const decodedState = window.atob(state);
+            const stateData = JSON.parse(decodedState);
+            const { user_id } = stateData;
             
             if (user_id) {
               // Get user data from supabase
