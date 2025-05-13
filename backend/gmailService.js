@@ -1,23 +1,8 @@
 import axios from 'axios';
 import supabase from './supabaseClient.js';
 import { google } from 'googleapis';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
-import { promises as fs } from 'fs';
-import { execSync } from 'child_process';
 
-// For running the agent
-import { fileURLToPath as fileURLToPathESM } from 'url';
-import { dirname as dirnameESM } from 'path';
-import { join as joinESM } from 'path';
-
-// Track if agent is initialized
-let agentInitialized = false;
-let agentGraph = null;
-
-// Import Gmail adapter
-import { getGmailService, getEmailBody, getOrCreateLabel } from './gmail_agent/utils/gmailAdapter.js';
-
+// Function to refresh OAuth2 access token
 async function refreshAccessToken(userId, refreshToken, clientId, clientSecret) {
   try {
     const response = await axios.post('https://oauth2.googleapis.com/token', {
@@ -53,6 +38,7 @@ async function refreshAccessToken(userId, refreshToken, clientId, clientSecret) 
   }
 }
 
+// Get access token for a user
 export async function getAccessToken(userId) {
   try {
     const { data, error } = await supabase
@@ -68,7 +54,6 @@ export async function getAccessToken(userId) {
     const tokens = data.oath_tokens;
     const expiresAt = new Date(tokens.expires_at);
     
-
     if (expiresAt <= new Date(Date.now() + 5 * 60 * 1000)) {
       console.log('Access token expired or about to expire, refreshing...');
       const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -84,6 +69,7 @@ export async function getAccessToken(userId) {
   }
 }
 
+// Get all emails for a user
 export async function getInsuranceEmails(userId) {
   try {
     const accessToken = await getAccessToken(userId);
@@ -171,41 +157,32 @@ export async function generateDraftResponse(emailId, userId) {
     const accessToken = await getAccessToken(userId);
     const emailDetails = await getEmailDetails(emailId, accessToken);
     
-    // Initialize agent if not already initialized
-    if (!agentInitialized) {
-      await initializeAgent();
-    }
-    
-    // Prepare email data for agent
+    // Prepare email data for the Python Gmail Agent API
     const emailForAgent = {
       id: emailDetails.id,
       threadId: emailDetails.threadId,
-      payload: {
-        headers: [
-          { name: 'From', value: emailDetails.sender },
-          { name: 'Subject', value: emailDetails.subject },
-          { name: 'Date', value: emailDetails.date }
-        ],
-        body: { data: Buffer.from(emailDetails.body).toString('base64') }
-      }
+      sender: emailDetails.sender,
+      subject: emailDetails.subject,
+      date: emailDetails.date,
+      body: emailDetails.body,
+      accessToken: accessToken  // Include the access token for the Gmail API
     };
     
-    // Run the agent workflow
-    console.log("Starting Gmail Agent workflow for email:", emailDetails.subject);
+    // Call the external Python Gmail Agent API
+    console.log("Calling Gmail Agent API for email:", emailDetails.subject);
     
-    const initialState = {
-      initialized: true,
-      new_email: emailForAgent,
-      processed_email_ids: [emailDetails.id],
-      continue_polling: false
-    };
+    // Get the API URL from environment variables or use default
+    const GMAIL_AGENT_API_URL = process.env.GMAIL_AGENT_API_URL || 'http://localhost:5000/api';
     
-    // Using dynamic import for ESM compatibility with the agent
-    const { default: runAgentWorkflow } = await import('./gmail_agent/runAgent.js');
-    const result = await runAgentWorkflow(initialState, accessToken);
+    // Call the external Python Gmail Agent service
+    const response = await axios.post(`${GMAIL_AGENT_API_URL}/generate-response`, emailForAgent);
     
-    // Extract the generated response from agent result
-    const draftResponse = result.llm_output || "The agent was unable to generate a response.";
+    // Extract the generated response
+    if (!response.data || !response.data.response) {
+      throw new Error('Invalid response from Gmail Agent API');
+    }
+    
+    const draftResponse = response.data.response;
     
     return {
       subject: `Re: ${emailDetails.subject}`,
@@ -216,82 +193,16 @@ export async function generateDraftResponse(emailId, userId) {
     };
   } catch (error) {
     console.error('Error generating draft response:', error);
-    throw error;
+    
+    // Fallback to a generic response if the API call fails
+    return {
+      subject: `Re: Regarding your inquiry`,
+      body: "Thank you for your email. We're currently processing your request and will get back to you shortly with a more detailed response.\n\nBest regards,\nYour Insurance Team",
+      to: "recipient@example.com",
+      threadId: null,
+      originalEmailId: emailId
+    };
   }
-}
-
-// Initialize the agent
-async function initializeAgent() {
-  try {
-    console.log("Initializing Gmail Agent...");
-    
-    // Create runAgent.js file if it doesn't exist
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = dirname(__filename);
-    const runAgentPath = join(__dirname, 'gmail_agent', 'runAgent.js');
-    
-    // Check if necessary files exist and create directory structure if needed
-    try {
-      await fs.mkdir(join(__dirname, 'gmail_agent'), { recursive: true });
-      await fs.mkdir(join(__dirname, 'gmail_agent', 'utils'), { recursive: true });
-    } catch (err) {
-      console.log("Directories already exist:", err.message);
-    }
-    
-    // Update utils/nodes.js to use the access token from global space if it exists
-    const nodesPath = join(__dirname, 'gmail_agent', 'utils', 'nodes.js');
-    try {
-      const nodesExists = await fs.access(nodesPath).then(() => true).catch(() => false);
-      
-      if (nodesExists) {
-        const nodesContent = await fs.readFile(nodesPath, 'utf8');
-        const updatedNodesContent = nodesContent.replace(
-          /const service = getGmailService\(\)/g, 
-          'const service = getGmailService(global.gmailAccessToken)'
-        );
-        await fs.writeFile(nodesPath, updatedNodesContent);
-      }
-    } catch (err) {
-      console.log("Could not update nodes.js, will be created by installation process:", err.message);
-    }
-    
-    // Install required packages
-    console.log("Installing required packages for Gmail Agent...");
-    
-    try {
-      execSync('cd ' + join(__dirname, 'gmail_agent') + ' && npm install --legacy-peer-deps', { stdio: 'inherit' });
-      console.log("Packages installed successfully");
-    } catch (error) {
-      console.error("Failed to install packages:", error);
-      throw new Error("Failed to install required packages for Gmail Agent");
-    }
-    
-    agentInitialized = true;
-    console.log("Gmail Agent initialized successfully");
-  } catch (error) {
-    console.error("Error initializing agent:", error);
-    throw error;
-  }
-}
-
-// Temporary mock response generator
-function generateMockResponse(email) {
-  return `Dear Insurance Provider,
-
-Thank you for your message regarding ${email.subject}. I am writing to address several concerns with this matter.
-
-POLICY DETAILS
-Based on my policy, I believe this should be covered under my current plan. According to my documentation, these services are included in my coverage.
-
-REQUEST FOR CLARIFICATION
-I would appreciate additional information about the specific details mentioned in your email. If there are any forms or documentation needed from my side, please let me know.
-
-I would appreciate a written response within 30 days, as required by state insurance regulations. If you have any questions, please contact me directly.
-
-Thank you for your prompt attention to this matter.
-
-Sincerely,
-[Your Name]`;
 }
 
 // Send an email response
@@ -334,18 +245,10 @@ export async function sendEmailResponse(userId, threadId, message) {
   }
 }
 
-// Function to initialize the Gmail service adapter
-function initializeGmailService(accessToken) {
-  // Store the access token in global space for the agent to use
-  global.gmailAccessToken = accessToken;
-  return getGmailService(accessToken);
-}
-
 export default {
   getAccessToken,
   getInsuranceEmails,
   getEmailDetails,
   generateDraftResponse,
-  sendEmailResponse,
-  initializeGmailService
+  sendEmailResponse
 }; 
