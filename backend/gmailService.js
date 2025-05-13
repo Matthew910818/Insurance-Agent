@@ -1,7 +1,23 @@
 import axios from 'axios';
 import supabase from './supabaseClient.js';
+import { google } from 'googleapis';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+import { promises as fs } from 'fs';
+import { execSync } from 'child_process';
 
-// Refreshes the access token if expired
+// For running the agent
+import { fileURLToPath as fileURLToPathESM } from 'url';
+import { dirname as dirnameESM } from 'path';
+import { join as joinESM } from 'path';
+
+// Track if agent is initialized
+let agentInitialized = false;
+let agentGraph = null;
+
+// Import Gmail adapter
+import { getGmailService, getEmailBody, getOrCreateLabel } from './gmail_agent/utils/gmailAdapter.js';
+
 async function refreshAccessToken(userId, refreshToken, clientId, clientSecret) {
   try {
     const response = await axios.post('https://oauth2.googleapis.com/token', {
@@ -12,11 +28,8 @@ async function refreshAccessToken(userId, refreshToken, clientId, clientSecret) 
     });
 
     const { access_token, expires_in } = response.data;
-    
-    // Calculate new expiry time
     const expiresAt = new Date(Date.now() + (expires_in * 1000)).toISOString();
     
-    // Update stored tokens in database
     const { error } = await supabase
       .from('User Info')
       .update({
@@ -40,10 +53,8 @@ async function refreshAccessToken(userId, refreshToken, clientId, clientSecret) 
   }
 }
 
-// Get valid access token
 export async function getAccessToken(userId) {
   try {
-    // Get user OAuth tokens from database
     const { data, error } = await supabase
       .from('User Info')
       .select('oath_tokens')
@@ -57,10 +68,9 @@ export async function getAccessToken(userId) {
     const tokens = data.oath_tokens;
     const expiresAt = new Date(tokens.expires_at);
     
-    // Check if token has expired or will expire in the next 5 minutes
+
     if (expiresAt <= new Date(Date.now() + 5 * 60 * 1000)) {
       console.log('Access token expired or about to expire, refreshing...');
-      // Get client credentials from environment
       const clientId = process.env.GOOGLE_CLIENT_ID;
       const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
       
@@ -74,36 +84,26 @@ export async function getAccessToken(userId) {
   }
 }
 
-// Get insurance-related emails
 export async function getInsuranceEmails(userId) {
   try {
     const accessToken = await getAccessToken(userId);
     
-    // Query for insurance-related emails
-    const searchQuery = 'subject:(insurance OR claim OR policy OR coverage OR medical OR health OR benefits)';
-    
-    // Get list of messages that match the query
     const response = await axios.get('https://gmail.googleapis.com/gmail/v1/users/me/messages', {
       headers: {
         Authorization: `Bearer ${accessToken}`
       },
       params: {
-        q: searchQuery,
-        maxResults: 10
+        maxResults: 20
       }
     });
     
-    if (!response.data.messages || response.data.messages.length === 0) {
-      return [];
-    }
+    const messages = response.data.messages || [];
+    const emailPromises = messages.map(async (message) => {
+      const details = await getEmailDetails(message.id, accessToken);
+      return details;
+    });
     
-    // Fetch details for each message
-    const emails = [];
-    for (const message of response.data.messages) {
-      const emailData = await getEmailDetails(message.id, accessToken);
-      emails.push(emailData);
-    }
-    
+    const emails = await Promise.all(emailPromises);
     return emails;
   } catch (error) {
     console.error('Error fetching insurance emails:', error);
@@ -171,21 +171,183 @@ export async function generateDraftResponse(emailId, userId) {
     const accessToken = await getAccessToken(userId);
     const emailDetails = await getEmailDetails(emailId, accessToken);
     
-    // Get API URL from environment or use default
-    const API_URL = process.env.API_URL || 'http://localhost:8000/api';
-    
-    // Call the backend endpoint that interfaces with the Gmail Agent API
-    const response = await axios.post(`${API_URL}/agent/generate-response`, {
-      email: emailDetails
-    });
-    
-    if (response.data && response.data.draft) {
-      return response.data.draft;
-    } else {
-      throw new Error('No draft response generated');
+    // Initialize agent if not already initialized
+    if (!agentInitialized) {
+      await initializeAgent();
     }
+    
+    // Prepare email data for agent
+    const emailForAgent = {
+      id: emailDetails.id,
+      threadId: emailDetails.threadId,
+      payload: {
+        headers: [
+          { name: 'From', value: emailDetails.sender },
+          { name: 'Subject', value: emailDetails.subject },
+          { name: 'Date', value: emailDetails.date }
+        ],
+        body: { data: Buffer.from(emailDetails.body).toString('base64') }
+      }
+    };
+    
+    // Run the agent workflow
+    console.log("Starting Gmail Agent workflow for email:", emailDetails.subject);
+    
+    const initialState = {
+      initialized: true,
+      new_email: emailForAgent,
+      processed_email_ids: [emailDetails.id],
+      continue_polling: false
+    };
+    
+    // Using dynamic import for ESM compatibility with the agent
+    const { default: runAgentWorkflow } = await import('./gmail_agent/runAgent.js');
+    const result = await runAgentWorkflow(initialState, accessToken);
+    
+    // Extract the generated response from agent result
+    const draftResponse = result.llm_output || "The agent was unable to generate a response.";
+    
+    return {
+      subject: `Re: ${emailDetails.subject}`,
+      body: draftResponse,
+      to: emailDetails.sender,
+      threadId: emailDetails.threadId,
+      originalEmailId: emailDetails.id
+    };
   } catch (error) {
     console.error('Error generating draft response:', error);
+    throw error;
+  }
+}
+
+// Initialize the agent
+async function initializeAgent() {
+  try {
+    console.log("Initializing Gmail Agent...");
+    
+    // Create runAgent.js file if it doesn't exist
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+    const runAgentPath = join(__dirname, 'gmail_agent', 'runAgent.js');
+    
+    const runAgentContent = `
+import { AgentState } from './utils/state.js';
+import { graph } from './agent.js';
+
+// Function to run the agent workflow
+export default async function runAgentWorkflow(initialState, accessToken) {
+  try {
+    // Store the access token in global space for the agent to use
+    global.gmailAccessToken = accessToken;
+    
+    // Run the agent with the provided initial state
+    const events = [];
+    
+    for await (const event of graph.stream(initialState)) {
+      events.push(event);
+      console.log(\`Agent event: \${event.event_type}\`);
+      
+      // If we've generated a response, we can stop
+      if (event.event_type === 'on_node_end' && 
+          event.node_name === 'generate_response' && 
+          event.state.llm_output) {
+        break;
+      }
+    }
+    
+    // Return the final state
+    return events[events.length - 1].state;
+  } catch (error) {
+    console.error('Error running agent workflow:', error);
+    throw error;
+  }
+}
+`;
+    
+    await fs.writeFile(runAgentPath, runAgentContent);
+    
+    // Modify agent.py to work with ESM
+    const agentPath = join(__dirname, 'gmail_agent', 'agent.js');
+    const agentContent = `
+import { StateGraph } from 'langgraph';
+import { check_for_new_emails, classify_email, generate_response, send_email_response, flag_email, 
+         new_email_router, classification_router, agent, research, memory_injection,
+         evaluate_response_quality, response_evaluation_router, email_polling_router } from './utils/nodes.js';
+import { AgentState } from './utils/state.js';
+
+const workflow = new StateGraph(AgentState);
+
+workflow.addNode('agent', agent);
+workflow.addNode('check_emails', check_for_new_emails);
+workflow.addNode('classify_email', classify_email);
+workflow.addNode('memory_injection', memory_injection);
+workflow.addNode('generate_response', generate_response);
+workflow.addNode('evaluate', evaluate_response_quality);
+workflow.addNode('research', research);
+workflow.addNode('send_response', send_email_response);
+workflow.addNode('flag_email', flag_email);
+
+workflow.addConditionalEdges('check_emails', email_polling_router, {
+  'classify_email': 'classify_email',
+  'check_emails': 'check_emails', 
+  '__end__': END
+});
+
+workflow.addConditionalEdges('classify_email', classification_router, {
+  'research': 'research',
+  'flag_email': 'flag_email'
+});
+
+workflow.addConditionalEdges('generate_response', response_evaluation_router, {
+  'evaluate': 'evaluate',
+  'send_response': 'send_response'
+});
+
+workflow.addConditionalEdges('evaluate', response_evaluation_router, {
+  'evaluate': 'evaluate',
+  'research': 'research',
+  'send_response': 'send_response'
+});
+
+workflow.addEdge('agent', 'check_emails');
+workflow.addEdge('research', 'memory_injection');
+workflow.addEdge('memory_injection', 'generate_response');
+workflow.addEdge('send_response', 'flag_email');
+workflow.addEdge('flag_email', 'check_emails'); 
+workflow.setEntryPoint('agent');
+
+console.log("Gmail Agent workflow initialized");
+
+export const graph = workflow.compile();
+`;
+    
+    // Create a new version compatible with ESM
+    await fs.writeFile(agentPath, agentContent);
+    
+    // Update utils/nodes.js to use the access token from global space
+    const nodesPath = join(__dirname, 'gmail_agent', 'utils', 'nodes.js');
+    const nodesContent = await fs.readFile(nodesPath, 'utf8');
+    const updatedNodesContent = nodesContent.replace(
+      /const service = getGmailService\(\)/g, 
+      'const service = getGmailService(global.gmailAccessToken)'
+    );
+    await fs.writeFile(nodesPath, updatedNodesContent);
+    
+    // Install required packages
+    console.log("Installing required packages for Gmail Agent...");
+    
+    try {
+      execSync('cd ' + join(__dirname, 'gmail_agent') + ' && npm install langgraph google-auth-library @google-cloud/local-auth googleapis', { stdio: 'inherit' });
+      console.log("Packages installed successfully");
+    } catch (error) {
+      console.error("Failed to install packages:", error);
+      throw new Error("Failed to install required packages for Gmail Agent");
+    }
+    
+    agentInitialized = true;
+    console.log("Gmail Agent initialized successfully");
+  } catch (error) {
+    console.error("Error initializing agent:", error);
     throw error;
   }
 }
@@ -250,10 +412,18 @@ export async function sendEmailResponse(userId, threadId, message) {
   }
 }
 
+// Function to initialize the Gmail service adapter
+function initializeGmailService(accessToken) {
+  // Store the access token in global space for the agent to use
+  global.gmailAccessToken = accessToken;
+  return getGmailService(accessToken);
+}
+
 export default {
   getAccessToken,
   getInsuranceEmails,
   getEmailDetails,
   generateDraftResponse,
-  sendEmailResponse
+  sendEmailResponse,
+  initializeGmailService
 }; 

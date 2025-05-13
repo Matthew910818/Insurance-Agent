@@ -44,24 +44,12 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-
-# Jupyter Notebook
 .ipynb_checkpoints
-
-# LangGraph
 .langgraph-data
-
-# Database files
 qdrant_db/
 **/qdrant_db/
-
-# Miscellaneous
 .DS_Store
 .vscode/
 .idea/
-
-# OS specific
 Thumbs.db
-
-# Local Vercel folder
 .vercel

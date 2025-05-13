@@ -305,7 +305,7 @@ app.get('/api/emails/insurance', async (req, res) => {
 // Add a new endpoint to communicate with the Gmail Agent API
 app.post('/api/agent/generate-response', async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, user_id } = req.body;
     
     if (!email) {
       return res.status(400).json({
@@ -313,17 +313,20 @@ app.post('/api/agent/generate-response', async (req, res) => {
       });
     }
     
-    // Call the Gmail Agent API to generate a response
-    console.log(`Calling Gmail Agent API at ${GMAIL_AGENT_API_URL}/generate-response`);
-    const response = await axios.post(`${GMAIL_AGENT_API_URL}/generate-response`, {
-      email: email
-    });
+    if (!user_id) {
+      return res.status(400).json({
+        error: 'User ID is required'
+      });
+    }
+    
+    // Generate draft response using the integrated Gmail Agent
+    const draftResponse = await gmailService.generateDraftResponse(email.id, user_id);
     
     return res.status(200).json({
-      draft: response.data.response || response.data.draft || response.data
+      draft: draftResponse
     });
   } catch (err) {
-    console.error('Error calling Gmail Agent API:', err);
+    console.error('Error generating response with Gmail Agent:', err);
     return res.status(500).json({
       error: 'Failed to generate response from Gmail Agent',
       details: err.message
@@ -331,7 +334,7 @@ app.post('/api/agent/generate-response', async (req, res) => {
   }
 });
 
-// Get draft response for an email
+// Add endpoint to generate a draft response for an email
 app.post('/api/emails/draft-response', async (req, res) => {
   try {
     const { email_id, user_id } = req.body;
@@ -342,7 +345,7 @@ app.post('/api/emails/draft-response', async (req, res) => {
       });
     }
     
-    // Generate draft response
+    // Generate a draft response using the Gmail Agent
     const draft = await gmailService.generateDraftResponse(email_id, user_id);
     
     return res.status(200).json({
