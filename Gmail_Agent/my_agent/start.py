@@ -17,7 +17,6 @@ from langchain_core.documents import Document
 from dotenv import load_dotenv
 from openai import OpenAI
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
@@ -112,33 +111,6 @@ class EmailInput(BaseModel):
 class ResponseOutput(BaseModel):
     draft: str
 
-# @app.get("/")
-# async def root():
-#     """
-#     Root endpoint providing information about available routes.
-#     """
-#     db_status = "available" if vectorstore else "unavailable"
-    
-#     return {
-#         "message": "Gmail Agent API is running",
-#         "vector_database_status": db_status,
-#         "available_endpoints": [
-#             {
-#                 "path": "/memories",
-#                 "description": "Get relevant memories",
-#                 "example": "/memories?query=denial&limit=5&formatted=true"
-#             },
-#             {
-#                 "path": "/status",
-#                 "description": "Check the status of the system",
-#             },
-#             {
-#                 "path": "/generate-response",
-#                 "description": "Generate a response to an email",
-#                 "method": "POST"
-#             }
-#         ]
-#     }
 
 @app.get("/status")
 async def status():
@@ -183,7 +155,6 @@ async def get_memories(
     """
     logger.info(f"Memories endpoint called with query='{query}', limit={limit}, formatted={formatted}")
     try:
-        # Define search function
         def search_memory(query: str, limit: int = 3) -> List[Dict]:
             if not vectorstore:
                 logger.warning("Vector store not available for memory search")
@@ -194,7 +165,6 @@ async def get_memories(
                 results = vectorstore.similarity_search_with_score(query, k=limit)
                 logger.info(f"Found {len(results)} results")
                 
-                # Format the results
                 memory_results = []
                 for doc, score in results:
                     memory_results.append({
@@ -278,7 +248,6 @@ async def generate_response(email_input: EmailInput):
         except ImportError:
             logger.warning("Import from my_agent.utils failed, trying direct imports")
             try:
-                # Try direct imports as fallback (for different directory structures)
                 from utils.nodes import classify_email as classify_email_node
                 from utils.nodes import research as research_node
                 from utils.nodes import memory_injection as memory_injection_node

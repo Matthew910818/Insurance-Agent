@@ -170,13 +170,14 @@ class WebSearchTool(BaseTool):
         try:
             print(f"[WebSearchTool] Performing search for: '{query}'")
             
-            if "insurance" in query.lower() or "policy" in query.lower() or "claim" in query.lower() or "appeal" in query.lower():
-                print("[WebSearchTool] Using specialized insurance research approach")
-                completion = local_client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=[
-                        {"role": "system", "content": """You are a specialized insurance researcher with access to the latest insurance regulations and practices. 
-                        
+            try:
+                if "insurance" in query.lower() or "policy" in query.lower() or "claim" in query.lower() or "appeal" in query.lower():
+                    print("[WebSearchTool] Using specialized insurance research approach")
+                    completion = local_client.chat.completions.create(
+                        model="gpt-4o",
+                        messages=[
+                            {"role": "system", "content": """You are a specialized insurance researcher with access to the latest insurance regulations and practices. 
+                            
 For each query, provide a detailed, up-to-date answer that includes:
 1. Current regulations and laws that apply (federal and state level)
 2. Recent changes (2024-2025) that affect the topic
@@ -186,46 +187,66 @@ For each query, provide a detailed, up-to-date answer that includes:
 IMPORTANT: If information might be outdated (pre-2025), explicitly note this and recommend official verification.
 
 Format your response with clear headings and bullet points for easy reading."""},
-                        {"role": "user", "content": query}
+                            {"role": "user", "content": query}
+                        ],
+                        temperature=0.2
+                    )
+                    search_result = completion.choices[0].message.content
+                    
+                    search_result += "\n\n[NOTE: For the most current and authoritative information, please verify with your state's insurance department or the relevant federal agency as regulations may have changed recently.]"
+                else:
+                    print("[WebSearchTool] Using general search approach")
+                    # Check if responses API is available
+                    has_responses_api = hasattr(local_client, 'responses') and callable(getattr(local_client, 'responses', {}).get('create', None))
+                    
+                    if has_responses_api:
+                        print("[WebSearchTool] Using OpenAI responses API with web search")
+                        try:
+                            response = local_client.responses.create(
+                                model="gpt-4o",
+                                tools=[{"type": "web_search_preview"}],
+                                input=query
+                            )
+                            print("[WebSearchTool] Successfully called responses.create API")
+                            
+                            search_result = ""
+                            if hasattr(response, 'output') and response.output:
+                                for output_item in response.output:
+                                    if hasattr(output_item, 'content') and output_item.content:
+                                        for content_item in output_item.content:
+                                            if hasattr(content_item, 'text'):
+                                                search_result = content_item.text
+                                                break
+                        
+                            if not search_result and hasattr(response, 'text'):
+                                search_result = response.text
+                            if not search_result:
+                                search_result = str(response)
+                        except Exception as e:
+                            print(f"[WebSearchTool] Error with responses API: {e}. Falling back to standard completions.")
+                            raise RuntimeError("Failed to use responses API") from e
+                    else:
+                        print("[WebSearchTool] OpenAI responses API not available, using chat completions")
+                        raise AttributeError("responses API not available")
+            except Exception as api_error:
+                print(f"[WebSearchTool] Falling back to standard completions due to: {str(api_error)}")
+                # Fallback to standard completions if any error occurred above
+                completion = local_client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[
+                        {"role": "system", "content": """You are a helpful web search assistant. When responding:
+1. Provide comprehensive, factual information based on your knowledge
+2. Clearly indicate when information might be outdated (your training only includes data until 2023)
+3. For recent events, explicitly note your knowledge cutoff date
+4. Format responses with clear headings and bullet points
+5. Include relevant dates, sources, or context where appropriate
+
+When answering questions about current events, policies, or time-sensitive information, recommend verifying with up-to-date sources."""},
+                        {"role": "user", "content": f"Search query: {query}\n\nPlease provide comprehensive information about this topic, including recent developments you're aware of. Note your knowledge limitations where appropriate."}
                     ],
                     temperature=0.2
                 )
                 search_result = completion.choices[0].message.content
-                
-                search_result += "\n\n[NOTE: For the most current and authoritative information, please verify with your state's insurance department or the relevant federal agency as regulations may have changed recently.]"
-            else:
-                print("[WebSearchTool] Using general search approach")
-                try:
-                    response = local_client.responses.create(
-                        model="gpt-4o",
-                        tools=[{"type": "web_search_preview"}],
-                        input=query
-                    )
-                    print("[WebSearchTool] Successfully called responses.create API")
-                    
-                    search_result = ""
-                    if hasattr(response, 'output') and response.output:
-                        for output_item in response.output:
-                            if hasattr(output_item, 'content') and output_item.content:
-                                for content_item in output_item.content:
-                                    if hasattr(content_item, 'text'):
-                                        search_result = content_item.text
-                                        break
-                    
-                    if not search_result and hasattr(response, 'text'):
-                        search_result = response.text
-                    if not search_result:
-                        search_result = str(response)
-                except Exception as e:
-                    print(f"[WebSearchTool] Error with responses API: {e}. Falling back to standard completions.")
-                    completion = local_client.chat.completions.create(
-                        model="gpt-4o",
-                        messages=[
-                            {"role": "system", "content": "You are a helpful assistant. Please note that your training data only goes up to a certain point, so for any recent events or information, make it clear that your knowledge has limitations and recommend checking current sources."},
-                            {"role": "user", "content": query}
-                        ]
-                    )
-                    search_result = completion.choices[0].message.content
             
             print("[WebSearchTool] Successfully received search results")
             

@@ -238,19 +238,63 @@ def classify_email(state: AgentState):
     sender = next((header['value'] for header in headers if header['name'] == 'From'), '')
     body = get_email_body(payload)
     email_content = f"From: {sender}\nSubject: {subject}\n\n{body}"
-    system_prompt = """You are an assistant that classifies emails. If the email is medical insurance related, classify it as 'Yes', otherwise as 'No'.
+    
+    try:
+        # Use direct OpenAI client as fallback if structured output fails
+        llm = get_llm()
+        
+        try:
+            # Try using with_structured_output if available
+            system_prompt = """You are an assistant that classifies emails. If the email is medical insurance related, classify it as 'Yes', otherwise as 'No'.
 Yes - e.g., Insurance Denail Claim."""
-    grade_prompt = ChatPromptTemplate.from_messages(
-        [
-            ("system", system_prompt),
-            ("human", "Email content:\n\n{email_content}\n\nIs this an insurance realted email? 'Yes' or 'No'?"),
-        ]
-    )
-    llm = get_llm()
-    structured_llm = llm.with_structured_output(GradeEmail)
-    classifier = grade_prompt | structured_llm
-    result = classifier.invoke({"email_content": email_content})
-    state['email_classification'] = result.score
+            grade_prompt = ChatPromptTemplate.from_messages(
+                [
+                    ("system", system_prompt),
+                    ("human", "Email content:\n\n{email_content}\n\nIs this an insurance related email? 'Yes' or 'No'?"),
+                ]
+            )
+            
+            try:
+                # Try new style structured output
+                structured_llm = llm.with_structured_output(GradeEmail)
+                classifier = grade_prompt | structured_llm
+                result = classifier.invoke({"email_content": email_content})
+                state['email_classification'] = result.score
+            except AttributeError:
+                # Fallback to older pydantic output method if available
+                from langchain.pydantic_v1 import BaseModel, Field
+                from langchain.chains.structured_output import create_structured_output_chain
+                
+                class GradeEmailV1(BaseModel):
+                    score: str = Field(description="Is the email medical insurance related? If yes -> 'Yes', if not -> 'No'")
+                
+                chain = create_structured_output_chain(GradeEmailV1, llm, grade_prompt)
+                result = chain.invoke({"email_content": email_content})
+                state['email_classification'] = result["score"]
+                
+        except Exception as e:
+            print(f"Error using LangChain structured output: {e}")
+            # Direct OpenAI call as last resort
+            openai_api_key = os.getenv("OPENAI_API_KEY")
+            client = OpenAI(api_key=openai_api_key)
+            
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are an assistant that classifies emails. If the email is medical insurance related, answer 'Yes', otherwise answer 'No'."},
+                    {"role": "user", "content": f"Email content:\n\n{email_content}\n\nIs this an insurance related email? Answer only with 'Yes' or 'No'."}
+                ],
+                temperature=0
+            )
+            state['email_classification'] = response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"Final fallback classification error: {e}")
+        # Absolute fallback
+        if any(term in email_content.lower() for term in ['insurance', 'policy', 'claim', 'coverage', 'premium']):
+            state['email_classification'] = 'Yes'
+        else:
+            state['email_classification'] = 'No'
+    
     print("Updated state in 'classify_email':", state)
     return state
 
@@ -821,6 +865,24 @@ def flag_email(state: AgentState):
         print(f"Unexpected classification value: {classification_raw}, defaulting to 'Non-Insurance'")
         label_name = 'Non-Insurance'
     
+    # Check if Gmail service is available
+    if service is None:
+        print("Gmail service is not available - cannot apply labels or mark as read")
+        print(f"Would have labeled email as '{label_name}' if service was available")
+        
+        # Still update the state even without modifying the actual email
+        state['new_email'] = None
+        if 'processed_email_ids' not in state:
+            state['processed_email_ids'] = []
+        
+        if email_id not in state['processed_email_ids']:
+            state['processed_email_ids'].append(email_id)
+            print(f"Added email ID {email_id} to processed list")
+        
+        print(f"Email {email_id} processed without Gmail API interaction. State updated.")
+        return state
+    
+    # If we reach here, Gmail service is available
     try:
         label_id = get_or_create_label(service, label_name)
         
