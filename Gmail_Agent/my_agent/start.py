@@ -101,9 +101,11 @@ try:
             
             if not "insurance_research" in collection_names:
                 print("Collection 'insurance_research' not found. Creating it...")
+                # Updated collection creation for newer Qdrant versions
+                from qdrant_client.models import VectorParams, Distance
                 client.recreate_collection(
                     collection_name="insurance_research",
-                    vectors_config={"size": 1536, "distance": "Cosine"}
+                    vectors_config=VectorParams(size=1536, distance=Distance.COSINE)
                 )
                 print("Created 'insurance_research' collection")
             
