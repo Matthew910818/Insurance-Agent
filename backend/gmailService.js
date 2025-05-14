@@ -2,7 +2,6 @@ import axios from 'axios';
 import supabase from './supabaseClient.js';
 import { google } from 'googleapis';
 
-// Function to refresh OAuth2 access token
 async function refreshAccessToken(userId, refreshToken, clientId, clientSecret) {
   try {
     const response = await axios.post('https://oauth2.googleapis.com/token', {
@@ -38,7 +37,6 @@ async function refreshAccessToken(userId, refreshToken, clientId, clientSecret) 
   }
 }
 
-// Get access token for a user
 export async function getAccessToken(userId) {
   try {
     const { data, error } = await supabase
@@ -69,7 +67,6 @@ export async function getAccessToken(userId) {
   }
 }
 
-// Get all emails for a user
 export async function getInsuranceEmails(userId) {
   try {
     const accessToken = await getAccessToken(userId);
@@ -97,7 +94,6 @@ export async function getInsuranceEmails(userId) {
   }
 }
 
-// Get details for a specific email
 export async function getEmailDetails(messageId, accessToken) {
   try {
     const response = await axios.get(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}`, {
@@ -114,11 +110,8 @@ export async function getEmailDetails(messageId, accessToken) {
     const subject = headers.find(h => h.name.toLowerCase() === 'subject')?.value || 'No Subject';
     const from = headers.find(h => h.name.toLowerCase() === 'from')?.value || '';
     const date = headers.find(h => h.name.toLowerCase() === 'date')?.value || '';
-    
-    // Extract body content
     let body = '';
     
-    // Function to extract text from parts
     function extractTextFromParts(parts) {
       for (const part of parts) {
         if (part.mimeType === 'text/plain' && part.body.data) {
@@ -129,7 +122,6 @@ export async function getEmailDetails(messageId, accessToken) {
       }
     }
     
-    // Check for body in different places
     if (message.payload.body && message.payload.body.data) {
       body = Buffer.from(message.payload.body.data, 'base64').toString('utf-8');
     } else if (message.payload.parts) {
@@ -151,13 +143,11 @@ export async function getEmailDetails(messageId, accessToken) {
   }
 }
 
-// Generate a response draft for an insurance email
 export async function generateDraftResponse(emailId, userId) {
   try {
     const accessToken = await getAccessToken(userId);
     const emailDetails = await getEmailDetails(emailId, accessToken);
     
-    // Prepare email data for the Python Gmail Agent API
     const emailForAgent = {
       email: {
         subject: emailDetails.subject,
@@ -168,33 +158,20 @@ export async function generateDraftResponse(emailId, userId) {
       }
     };
     
-    // Call the external Python Gmail Agent API
     console.log("Calling Gmail Agent API for email:", emailDetails.subject);
-    
-    // Get the API URL from environment variables or use default
     const GMAIL_AGENT_API_URL = process.env.GMAIL_AGENT_API_URL || 'http://localhost:10000';
-    
     console.log(`Sending request to ${GMAIL_AGENT_API_URL}/generate-response`);
-    
-    // Call the external Python Gmail Agent service
     const response = await axios.post(`${GMAIL_AGENT_API_URL}/generate-response`, emailForAgent);
-    
     console.log("Raw response from Gmail Agent:", JSON.stringify(response.data).substring(0, 200));
-    
-    // Handle different response formats that might come from the Python agent
     let draftResponse;
     
     if (typeof response.data === 'string') {
-      // Handle plain string response
       draftResponse = response.data;
     } else if (response.data && response.data.draft) {
-      // Handle {draft: "..."} format - this is the expected format from api_memory.py
       draftResponse = response.data.draft;
     } else if (response.data && response.data.response) {
-      // Handle {response: "..."} format
       draftResponse = response.data.response;
     } else if (response.data && typeof response.data === 'object') {
-      // For any other object response, stringify it for debugging
       console.log("Unexpected response format from agent:", JSON.stringify(response.data));
       draftResponse = JSON.stringify(response.data);
     } else {
@@ -206,34 +183,29 @@ export async function generateDraftResponse(emailId, userId) {
     console.error('Error generating draft response:', error);
     console.error('Error details:', error.response?.data || error.message);
     
-    // Fallback to a generic response if the API call fails
-    return "Thank you for your email. We're currently experiencing technical difficulties with our automated response system. A representative will review your message and get back to you shortly.\n\nBest regards,\nYour Insurance Team";
+    return "API call failed...";
   }
 }
 
-// Send an email response
 export async function sendEmailResponse(userId, threadId, message) {
   try {
     const accessToken = await getAccessToken(userId);
     
-    // Create email in RFC 2822 format
     const email = [
       'Content-Type: text/plain; charset="UTF-8"',
       'MIME-Version: 1.0',
       'Content-Transfer-Encoding: 7bit',
-      'to: recipient@example.com', // Should be extracted from the original email
+      'to: recipient@example.com',
       'subject: Re: Insurance Claim',
       '',
       message
     ].join('\n');
     
-    // Encode the email to base64url format
     const encodedEmail = Buffer.from(email).toString('base64')
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=+$/, '');
     
-    // Send the email
     await axios.post(`https://gmail.googleapis.com/gmail/v1/users/me/messages/send`, {
       raw: encodedEmail,
       threadId: threadId

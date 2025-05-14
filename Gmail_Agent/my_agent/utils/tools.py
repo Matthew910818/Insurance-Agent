@@ -192,7 +192,6 @@ Format your response with clear headings and bullet points for easy reading."""}
                 )
                 search_result = completion.choices[0].message.content
                 
-                # Add a note about currency of information
                 search_result += "\n\n[NOTE: For the most current and authoritative information, please verify with your state's insurance department or the relevant federal agency as regulations may have changed recently.]"
             else:
                 print("[WebSearchTool] Using general search approach")

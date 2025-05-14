@@ -1,6 +1,5 @@
 from functools import lru_cache
 from langchain_openai import ChatOpenAI
-# from langgraph import node, Graph
 from langchain_community.agent_toolkits import GmailToolkit 
 from my_agent.utils.state import AgentState
 from my_agent.utils.tools import send_email, get_email_body, get_or_create_label, WebSearchTool, search_memory
@@ -366,10 +365,7 @@ Example: ["query 1", "query 2", "query 3"]"""),
                     if result.startswith("Error performing web search"):
                         print(f"[Research] Web search error: {result}")
                         # In case of error, provide a fallback response
-                        result = f"Could not retrieve current information for '{query}'. Using general knowledge: " + \
-                                "Insurance policies typically require specific documentation for claims approval. " + \
-                                "Important aspects include policy terms, coverage limits, and exclusions. " + \
-                                "For appeals, provide all relevant medical records and supporting documentation."
+                        result = f"Error performing web search: {result}"
                     
                     print("\n" + "-"*80)
                     print(f"[Research] SEARCH RESULT FOR: {query}")
@@ -405,7 +401,6 @@ Example: ["query 1", "query 2", "query 3"]"""),
         
         combined_results = existing_results.copy() 
         
-        # Add memory results (avoiding duplicates)
         for mem_item in memory_results:
             if not any(item['query'] == mem_item['query'] for item in combined_results):
                 formatted_results = ""
@@ -510,23 +505,19 @@ def generate_response(state: AgentState):
     body = get_email_body(payload)
     email_content = f"From: {sender}\nSubject: {subject}\n\n{body}"
     
-    # Include research results if available
     research_context = ""
     if research_results := state.get('research_results', []):
         research_context = "\n\nResearch information:\n"
         for idx, item in enumerate(research_results, 1):
             research_context += f"\n{idx}. Query: {item['query']}\nResults: {item['result']}\n"
     
-    # Include memory context if available
     memory_context = state.get('memory_context', '')
     if memory_context:
         research_context += f"\n\n{memory_context}"
     
-    # Track research cycles to prevent infinite loops
     if 'research_cycles' not in state:
         state['research_cycles'] = 0
     
-    # Add cycle information to the prompt
     cycle_info = ""
     if state.get('research_cycles', 0) > 0:
         cycle_info = f"\n\nThis is research cycle #{state['research_cycles']}. If you need more information to provide a complete response, indicate this in your analysis."
@@ -777,14 +768,11 @@ def send_email_response(state: AgentState):
         
         if memory_id:
             print(f"[Memory] Successfully stored conversation memory with ID: {memory_id}")
-            
-            # Add debug info
             if 'debug' not in state:
                 state['debug'] = {}
             state['debug']['memory_stored'] = True
             state['debug']['memory_id'] = memory_id
             
-            # Keep track of stored memories
             if 'stored_memories' not in state:
                 state['stored_memories'] = []
             state['stored_memories'].append(memory_id)
@@ -856,7 +844,6 @@ def flag_email(state: AgentState):
     if 'processed_email_ids' not in state:
         state['processed_email_ids'] = []
     
-    # Make sure we don't process this email again
     if email_id not in state['processed_email_ids']:
         state['processed_email_ids'].append(email_id)
         print(f"Added email ID {email_id} to processed list")

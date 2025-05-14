@@ -6,29 +6,22 @@ import supabase from './supabaseClient.js'
 import axios from 'axios'
 import gmailService from './gmailService.js'
 
-// Load environment variables
 dotenv.config()
-
 const app = express()
 const PORT = process.env.PORT || 8000
 
-// Set up Gmail Agent API URL from environment variables
 const GMAIL_AGENT_API_URL = process.env.GMAIL_AGENT_API_URL || 'http://localhost:10000'
 console.log(`Gmail Agent API URL: ${GMAIL_AGENT_API_URL}`)
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'
-
-// Google OAuth configuration
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 
-// Middleware
 app.use(cors())
 app.use(express.json())
 
-// Validation middleware
 const validateUserData = [
   body('Name').trim().notEmpty().withMessage('Name is required'),
   body('Gmail_Account')
@@ -45,10 +38,8 @@ const validateUserData = [
     .withMessage('Invalid phone number format'),
 ]
 
-// Routes
 app.get('/api/health', async (req, res) => {
   try {
-    // Check Gmail Agent API connectivity
     let agentStatus = 'unknown';
     try {
       const agentResponse = await axios.get(`${GMAIL_AGENT_API_URL}/health`, { timeout: 3000 });
@@ -69,9 +60,7 @@ app.get('/api/health', async (req, res) => {
   }
 })
 
-// Create a new user
 app.post('/api/users', validateUserData, async (req, res) => {
-  // Check for validation errors
   const errors = validationResult(req)
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() })
@@ -80,7 +69,6 @@ app.post('/api/users', validateUserData, async (req, res) => {
   try {
     const { Name, Gmail_Account, Phone_Number } = req.body
 
-    // Insert data into Supabase
     const { data, error } = await supabase
       .from('User Info')
       .insert([{ 
@@ -112,7 +100,6 @@ app.post('/api/users', validateUserData, async (req, res) => {
   }
 })
 
-// Get Gmail authentication URL
 app.get('/api/auth/gmail/url', async (req, res) => {
   try {
     const { user_id, redirect_uri = `${FRONTEND_URL}/auth/callback` } = req.query
@@ -129,10 +116,7 @@ app.get('/api/auth/gmail/url', async (req, res) => {
       })
     }
     
-    // Create a state parameter to include the user ID
     const state = Buffer.from(JSON.stringify({ user_id })).toString('base64')
-    
-    // Generate authorization URL
     const authUrl = new URL(GOOGLE_AUTH_URL)
     authUrl.searchParams.append('client_id', GOOGLE_CLIENT_ID)
     authUrl.searchParams.append('redirect_uri', redirect_uri)
@@ -154,7 +138,6 @@ app.get('/api/auth/gmail/url', async (req, res) => {
   }
 })
 
-// Handle Gmail OAuth callback
 app.post('/api/auth/gmail/callback', async (req, res) => {
   try {
     const { code, state, redirect_uri = `${FRONTEND_URL}/auth/callback` } = req.body
@@ -171,7 +154,6 @@ app.post('/api/auth/gmail/callback', async (req, res) => {
       })
     }
     
-    // Decode state to get user ID
     let stateData
     try {
       stateData = JSON.parse(Buffer.from(state, 'base64').toString())
@@ -188,7 +170,6 @@ app.post('/api/auth/gmail/callback', async (req, res) => {
       })
     }
     
-    // Exchange code for tokens
     const tokenResponse = await axios.post(GOOGLE_TOKEN_URL, {
       code,
       client_id: GOOGLE_CLIENT_ID,
@@ -205,7 +186,6 @@ app.post('/api/auth/gmail/callback', async (req, res) => {
       })
     }
     
-    // Store tokens in Supabase
     const tokenData = {
       access_token,
       refresh_token,
@@ -241,7 +221,6 @@ app.post('/api/auth/gmail/callback', async (req, res) => {
   }
 })
 
-// Add this new endpoint to get user by ID
 app.get('/api/users/:id', async (req, res) => {
   try {
     const userId = req.params.id;
@@ -252,7 +231,6 @@ app.get('/api/users/:id', async (req, res) => {
       });
     }
     
-    // Get user data from Supabase
     const { data, error } = await supabase
       .from('User Info')
       .select('*')
@@ -278,10 +256,8 @@ app.get('/api/users/:id', async (req, res) => {
   }
 });
 
-// Get insurance-related emails
 app.get('/api/emails/insurance', async (req, res) => {
   try {
-    // Get user ID from query params
     const userId = req.query.user_id;
     
     if (!userId) {
@@ -290,7 +266,6 @@ app.get('/api/emails/insurance', async (req, res) => {
       });
     }
     
-    // Check if user exists and has Gmail connected
     const { data, error } = await supabase
       .from('User Info')
       .select('is_gmail_connected')
@@ -310,7 +285,6 @@ app.get('/api/emails/insurance', async (req, res) => {
       });
     }
     
-    // Fetch insurance-related emails
     const emails = await gmailService.getInsuranceEmails(userId);
     
     return res.status(200).json({
@@ -325,7 +299,6 @@ app.get('/api/emails/insurance', async (req, res) => {
   }
 });
 
-// Add a new endpoint to communicate with the Gmail Agent API
 app.post('/api/agent/generate-response', async (req, res) => {
   try {
     const { email, user_id } = req.body;
@@ -344,12 +317,8 @@ app.post('/api/agent/generate-response', async (req, res) => {
     
     console.log(`Proxying request to external Python Gmail Agent at ${GMAIL_AGENT_API_URL}/generate-response`);
     
-    // Get the user's access token
     const accessToken = await gmailService.getAccessToken(user_id);
-    
-    // Call the external Python Gmail Agent
     try {
-      // Prepare the payload according to EmailInput format expected by Python FastAPI endpoint
       const agentPayload = {
         email: {
           subject: email.subject,
@@ -361,18 +330,13 @@ app.post('/api/agent/generate-response', async (req, res) => {
       };
       
       console.log(`Sending payload to Python Gmail Agent:`, JSON.stringify(agentPayload).substring(0, 200) + '...');
-      
-      // This line was missing - making the actual API call to the Python agent
       const agentResponse = await axios.post(`${GMAIL_AGENT_API_URL}/generate-response`, agentPayload);
-      
       console.log("Raw agent response:", JSON.stringify(agentResponse.data).substring(0, 200) + '...');
       
-      // Handle different response formats
       let draft;
       if (typeof agentResponse.data === 'string') {
         draft = agentResponse.data;
       } else if (agentResponse.data && agentResponse.data.draft) {
-        // This is the expected format from api_memory.py
         draft = agentResponse.data.draft;
       } else if (agentResponse.data && agentResponse.data.response) {
         draft = agentResponse.data.response;
@@ -390,7 +354,6 @@ app.post('/api/agent/generate-response', async (req, res) => {
       console.error('Error from Python Gmail Agent:', agentError.message);
       console.error('Agent error details:', agentError.response?.data || 'No response data');
       
-      // Fall back to the internal implementation
       const draft = await gmailService.generateDraftResponse(email.id, user_id);
       return res.status(200).json({
         draft: draft,
@@ -406,7 +369,6 @@ app.post('/api/agent/generate-response', async (req, res) => {
   }
 });
 
-// Add endpoint to generate a draft response for an email
 app.post('/api/emails/draft-response', async (req, res) => {
   try {
     const { email_id, user_id } = req.body;
@@ -417,13 +379,11 @@ app.post('/api/emails/draft-response', async (req, res) => {
       });
     }
     
-    // Get email details
     const accessToken = await gmailService.getAccessToken(user_id);
     const email = await gmailService.getEmailDetails(email_id, accessToken);
     
     console.log(`Processing email ${email_id} from ${email.sender}`);
     
-    // Call the external Python Gmail Agent API directly
     try {
       const emailForAgent = {
         email: {
@@ -440,7 +400,6 @@ app.post('/api/emails/draft-response', async (req, res) => {
       
       console.log("Agent response:", JSON.stringify(agentResponse.data).substring(0, 200) + '...');
       
-      // Handle different response formats
       let draft;
       if (typeof agentResponse.data === 'string') {
         draft = agentResponse.data;
@@ -459,8 +418,6 @@ app.post('/api/emails/draft-response', async (req, res) => {
     } catch (agentError) {
       console.error('Error from Python Gmail Agent:', agentError.message);
       console.error('Agent error details:', agentError.response?.data || 'No response data');
-      
-      // Fall back to the internal implementation
       const draft = await gmailService.generateDraftResponse(email_id, user_id);
       return res.status(200).json({
         draft: draft,
@@ -476,7 +433,6 @@ app.post('/api/emails/draft-response', async (req, res) => {
   }
 });
 
-// Send email response after user confirmation
 app.post('/api/emails/send-response', async (req, res) => {
   try {
     const { email_id, response, user_id, thread_id } = req.body;
@@ -487,7 +443,6 @@ app.post('/api/emails/send-response', async (req, res) => {
       });
     }
     
-    // Send email response
     await gmailService.sendEmailResponse(user_id, thread_id, response);
     
     return res.status(200).json({
@@ -503,7 +458,6 @@ app.post('/api/emails/send-response', async (req, res) => {
   }
 });
 
-// Add a test endpoint to directly call the Python agent
 app.post('/api/test/generate-response', async (req, res) => {
   try {
     const { email } = req.body;
@@ -516,9 +470,7 @@ app.post('/api/test/generate-response', async (req, res) => {
     
     console.log(`Test endpoint: Proxying request to Python Gmail Agent at ${GMAIL_AGENT_API_URL}/generate-response`);
     
-    // Call the external Python Gmail Agent
     try {
-      // Prepare the payload according to EmailInput format expected by Python FastAPI endpoint
       const agentPayload = {
         email: {
           subject: email.subject || 'Test Subject',
@@ -530,13 +482,9 @@ app.post('/api/test/generate-response', async (req, res) => {
       };
       
       console.log(`Sending test payload to Python Gmail Agent:`, JSON.stringify(agentPayload).substring(0, 200) + '...');
-      
-      // Make the API call to the Python agent
       const agentResponse = await axios.post(`${GMAIL_AGENT_API_URL}/generate-response`, agentPayload);
       
       console.log("Agent response:", JSON.stringify(agentResponse.data).substring(0, 200) + '...');
-      
-      // Handle different response formats
       let draft;
       if (typeof agentResponse.data === 'string') {
         draft = agentResponse.data;
@@ -571,10 +519,9 @@ app.post('/api/test/generate-response', async (req, res) => {
   }
 });
 
-// Add a test draft response endpoint
 app.post('/api/test/emails/draft-response', async (req, res) => {
   try {
-    const { email_id } = req.body;
+    const { email_id, subject, body, sender, threadId } = req.body;
     
     if (!email_id) {
       return res.status(400).json({
@@ -582,26 +529,16 @@ app.post('/api/test/emails/draft-response', async (req, res) => {
       });
     }
     
-    // For testing, we'll create a mock email
-    const mockEmail = {
-      id: email_id,
-      subject: "Test Insurance Claim Inquiry",
-      body: "I recently submitted a claim for my surgery, but haven't heard back. My policy number is XYZ789. Can you please check the status?",
-      sender: "testpatient@example.com",
-      threadId: "thread_" + email_id
-    };
-    
     console.log(`Test draft endpoint: Processing email ${email_id}`);
     
-    // Call the external Python Gmail Agent API directly
     try {
       const emailForAgent = {
         email: {
-          subject: mockEmail.subject,
-          body: mockEmail.body,
-          sender: mockEmail.sender,
-          id: mockEmail.id,
-          threadId: mockEmail.threadId
+          subject: subject || "Test Insurance Claim Inquiry",
+          body: body || "I recently submitted a claim for my surgery, but haven't heard back. My policy number is XYZ789. Can you please check the status?",
+          sender: sender || "test@example.com",
+          id: email_id,
+          threadId: threadId || "thread_" + email_id
         }
       };
       
@@ -609,8 +546,6 @@ app.post('/api/test/emails/draft-response', async (req, res) => {
       const agentResponse = await axios.post(`${GMAIL_AGENT_API_URL}/generate-response`, emailForAgent);
       
       console.log("Agent response:", JSON.stringify(agentResponse.data).substring(0, 200) + '...');
-      
-      // Handle different response formats
       let draft;
       if (typeof agentResponse.data === 'string') {
         draft = agentResponse.data;
@@ -631,7 +566,6 @@ app.post('/api/test/emails/draft-response', async (req, res) => {
       console.error('Error from Python Gmail Agent:', agentError.message);
       console.error('Agent error details:', agentError.response?.data || 'No response data');
       
-      // Fall back to the internal implementation
       return res.status(500).json({
         error: 'Failed to get response from Gmail Agent',
         details: agentError.message
@@ -646,7 +580,6 @@ app.post('/api/test/emails/draft-response', async (req, res) => {
   }
 });
 
-// Start the server
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`)
 }) 
