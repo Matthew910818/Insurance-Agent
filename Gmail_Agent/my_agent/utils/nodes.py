@@ -804,18 +804,26 @@ def flag_email(state: AgentState):
         return state
     
     email_id = email['id']
-    classification = state.get('email_classification', '').lower()
+    
+    # Safely get classification and handle None case
+    classification_raw = state.get('email_classification')
+    if classification_raw is None:
+        print("No classification found, defaulting to 'Non-Insurance'")
+        classification = 'no'
+    else:
+        classification = str(classification_raw).lower()
     
     if classification == 'no':
         label_name = 'Non-Insurance'
     elif classification == 'yes':
         label_name = 'Insurance'
     else:
-        raise ValueError(f"Unexpected classification value: {classification}")
-    
-    label_id = get_or_create_label(service, label_name)
+        print(f"Unexpected classification value: {classification_raw}, defaulting to 'Non-Insurance'")
+        label_name = 'Non-Insurance'
     
     try:
+        label_id = get_or_create_label(service, label_name)
+        
         service.users().messages().modify(
             userId='me',
             id=email_id,
