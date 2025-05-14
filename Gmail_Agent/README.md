@@ -71,7 +71,26 @@ To use the application, you need to set up a Supabase project:
 
 ## Gmail Agent
 
-The original Gmail Agent (in `my_agent/`) is built with LangGraph and provides automated Gmail processing capabilities. See the LangGraph documentation for more information on this component.
+The Gmail Agent (in `my_agent/`) is built with LangGraph and provides automated Gmail processing capabilities.
+
+### Deploying the Gmail Agent (Python API) to Render
+
+To deploy the Gmail Agent API to Render.com:
+
+1. Create a new Web Service on Render
+2. Connect your GitHub repository
+3. Configure the service:
+   - **Name**: Gmail Agent API
+   - **Root Directory**: `Gmail_Agent/my_agent` (important!)
+   - **Runtime**: Python 3
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `python -m uvicorn start:app --host 0.0.0.0 --port $PORT`
+   
+4. Add the following environment variables:
+   - `OPENAI_API_KEY`: Your OpenAI API key
+   - Any other environment variables required by your agent
+
+The API will be accessible at the URL provided by Render after deployment.
 
 ## Environment Variables
 
@@ -85,4 +104,9 @@ VITE_API_URL=http://localhost:8000/api
 PORT=8000
 SUPABASE_URL=your-supabase-url-here
 SUPABASE_SERVICE_KEY=your-supabase-service-key-here
+```
+
+### Gmail Agent (.env file for local development)
+```
+OPENAI_API_KEY=your-openai-api-key-here
 ```
