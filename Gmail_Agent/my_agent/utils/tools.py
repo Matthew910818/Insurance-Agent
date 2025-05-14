@@ -196,7 +196,6 @@ Format your response with clear headings and bullet points for easy reading."""}
                     search_result += "\n\n[NOTE: For the most current and authoritative information, please verify with your state's insurance department or the relevant federal agency as regulations may have changed recently.]"
                 else:
                     print("[WebSearchTool] Using general search approach")
-                    # Check if responses API is available
                     has_responses_api = hasattr(local_client, 'responses') and callable(getattr(local_client, 'responses', {}).get('create', None))
                     
                     if has_responses_api:
@@ -230,7 +229,6 @@ Format your response with clear headings and bullet points for easy reading."""}
                         raise AttributeError("responses API not available")
             except Exception as api_error:
                 print(f"[WebSearchTool] Falling back to standard completions due to: {str(api_error)}")
-                # Fallback to standard completions if any error occurred above
                 completion = local_client.chat.completions.create(
                     model="gpt-4o",
                     messages=[

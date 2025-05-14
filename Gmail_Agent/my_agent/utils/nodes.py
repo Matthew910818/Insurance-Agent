@@ -240,11 +240,8 @@ def classify_email(state: AgentState):
     email_content = f"From: {sender}\nSubject: {subject}\n\n{body}"
     
     try:
-        # Use direct OpenAI client as fallback if structured output fails
         llm = get_llm()
-        
         try:
-            # Try using with_structured_output if available
             system_prompt = """You are an assistant that classifies emails. If the email is medical insurance related, classify it as 'Yes', otherwise as 'No'.
 Yes - e.g., Insurance Denail Claim."""
             grade_prompt = ChatPromptTemplate.from_messages(
@@ -255,13 +252,11 @@ Yes - e.g., Insurance Denail Claim."""
             )
             
             try:
-                # Try new style structured output
                 structured_llm = llm.with_structured_output(GradeEmail)
                 classifier = grade_prompt | structured_llm
                 result = classifier.invoke({"email_content": email_content})
                 state['email_classification'] = result.score
             except AttributeError:
-                # Fallback to older pydantic output method if available
                 from langchain.pydantic_v1 import BaseModel, Field
                 from langchain.chains.structured_output import create_structured_output_chain
                 
@@ -274,7 +269,6 @@ Yes - e.g., Insurance Denail Claim."""
                 
         except Exception as e:
             print(f"Error using LangChain structured output: {e}")
-            # Direct OpenAI call as last resort
             openai_api_key = os.getenv("OPENAI_API_KEY")
             client = OpenAI(api_key=openai_api_key)
             
@@ -289,7 +283,6 @@ Yes - e.g., Insurance Denail Claim."""
             state['email_classification'] = response.choices[0].message.content.strip()
     except Exception as e:
         print(f"Final fallback classification error: {e}")
-        # Absolute fallback
         if any(term in email_content.lower() for term in ['insurance', 'policy', 'claim', 'coverage', 'premium']):
             state['email_classification'] = 'Yes'
         else:
@@ -408,7 +401,6 @@ Example: ["query 1", "query 2", "query 3"]"""),
                     
                     if result.startswith("Error performing web search"):
                         print(f"[Research] Web search error: {result}")
-                        # In case of error, provide a fallback response
                         result = f"Error performing web search: {result}"
                     
                     print("\n" + "-"*80)
@@ -476,7 +468,6 @@ Example: ["query 1", "query 2", "query 3"]"""),
         print(f"[Research] Error during research: {e}")
         print(traceback.format_exc())
         state['error'] = f"Error performing research: {str(e)}"
-        # Still provide some basic information even after error
         state['research_results'] = [{
             "query": "insurance policy basics",
             "result": "When dealing with insurance claims, always verify coverage details in your policy, document all communications, and request written explanations for any denials. For appeals, gather supporting medical documentation and cite specific policy provisions."
@@ -648,7 +639,7 @@ def evaluate_response_quality(state: AgentState):
     subject = next((header['value'] for header in headers if header['name'] == 'Subject'), '')
     sender = next((header['value'] for header in headers if header['name'] == 'From'), '')
     body = get_email_body(payload)
-    email_content = f"From: {sender}\nSubject: {subject}\n\n{body[:500]}..."  # Truncate for evaluation
+    email_content = f"From: {sender}\nSubject: {subject}\n\n{body[:500]}..." 
     
     print("\n" + "="*80)
     print("EVALUATING RESPONSE QUALITY")
@@ -718,7 +709,7 @@ What specific information is missing? Generate focused search queries to fill th
             try:
                 additional_queries = json.loads(additional_queries_json)
                 if isinstance(additional_queries, list):
-                    additional_queries = additional_queries[:2]  # Limit to 2 queries
+                    additional_queries = additional_queries[:2] 
                 else:
                     additional_queries = [additional_queries_json]
                     
@@ -848,8 +839,6 @@ def flag_email(state: AgentState):
         return state
     
     email_id = email['id']
-    
-    # Safely get classification and handle None case
     classification_raw = state.get('email_classification')
     if classification_raw is None:
         print("No classification found, defaulting to 'Non-Insurance'")
@@ -864,13 +853,7 @@ def flag_email(state: AgentState):
     else:
         print(f"Unexpected classification value: {classification_raw}, defaulting to 'Non-Insurance'")
         label_name = 'Non-Insurance'
-    
-    # Check if Gmail service is available
-    if service is None:
-        print("Gmail service is not available - cannot apply labels or mark as read")
-        print(f"Would have labeled email as '{label_name}' if service was available")
-        
-        # Still update the state even without modifying the actual email
+
         state['new_email'] = None
         if 'processed_email_ids' not in state:
             state['processed_email_ids'] = []
@@ -882,10 +865,8 @@ def flag_email(state: AgentState):
         print(f"Email {email_id} processed without Gmail API interaction. State updated.")
         return state
     
-    # If we reach here, Gmail service is available
     try:
         label_id = get_or_create_label(service, label_name)
-        
         service.users().messages().modify(
             userId='me',
             id=email_id,
