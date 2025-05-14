@@ -84,35 +84,33 @@ const InsuranceEmails = () => {
     
     setSelectedEmail(email)
     setDraftResponse(null)
+    setLoading(true)
     
     try {
       console.log('Requesting draft response for email:', email.id);
+      
+      // For local development, use the test endpoint that doesn't require valid OAuth tokens
+      const useTestEndpoint = import.meta.env.DEV || window.location.hostname === 'localhost';
+      const endpoint = useTestEndpoint 
+        ? `${API_URL}/test/emails/draft-response` 
+        : `${API_URL}/emails/draft-response`;
+      
       // Request draft response for the selected email
-      const response = await axios.post(`${API_URL}/emails/draft-response`, {
+      const response = await axios.post(endpoint, {
         email_id: email.id,
         user_id: user.id
-      })
+      });
       
       console.log('Draft response received:', response.data);
       
-      // Check different possible formats the draft might be returned in
-      let draft = null;
-      if (typeof response.data.draft === 'string') {
-        draft = response.data.draft;
-      } else if (response.data.draft && response.data.draft.body) {
-        draft = response.data.draft.body;
-      } else if (response.data.draft && response.data.draft.draft) {
-        draft = response.data.draft.draft;
-      } else {
-        console.warn('Could not extract draft from response:', response.data);
-        draft = 'Unable to generate a response. Please try again later.';
-      }
-      
-      setDraftResponse(draft)
+      // Directly use the draft response as it's already processed in the backend
+      setDraftResponse(response.data.draft || 'Unable to generate a response. Please try again later.')
       setShowDraftReview(true)
     } catch (err) {
       console.error('Error generating draft response:', err)
       setError('Failed to generate a response. Please try again.')
+    } finally {
+      setLoading(false)
     }
   }
 

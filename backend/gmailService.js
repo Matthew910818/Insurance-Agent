@@ -172,36 +172,42 @@ export async function generateDraftResponse(emailId, userId) {
     console.log("Calling Gmail Agent API for email:", emailDetails.subject);
     
     // Get the API URL from environment variables or use default
-    const GMAIL_AGENT_API_URL = process.env.GMAIL_AGENT_API_URL || 'http://localhost:5000/api';
+    const GMAIL_AGENT_API_URL = process.env.GMAIL_AGENT_API_URL || 'http://localhost:10000';
+    
+    console.log(`Sending request to ${GMAIL_AGENT_API_URL}/generate-response`);
     
     // Call the external Python Gmail Agent service
     const response = await axios.post(`${GMAIL_AGENT_API_URL}/generate-response`, emailForAgent);
     
-    // Extract the generated response
-    if (!response.data || !response.data.response) {
-      throw new Error('Invalid response from Gmail Agent API');
+    console.log("Raw response from Gmail Agent:", JSON.stringify(response.data).substring(0, 200));
+    
+    // Handle different response formats that might come from the Python agent
+    let draftResponse;
+    
+    if (typeof response.data === 'string') {
+      // Handle plain string response
+      draftResponse = response.data;
+    } else if (response.data && response.data.draft) {
+      // Handle {draft: "..."} format - this is the expected format from api_memory.py
+      draftResponse = response.data.draft;
+    } else if (response.data && response.data.response) {
+      // Handle {response: "..."} format
+      draftResponse = response.data.response;
+    } else if (response.data && typeof response.data === 'object') {
+      // For any other object response, stringify it for debugging
+      console.log("Unexpected response format from agent:", JSON.stringify(response.data));
+      draftResponse = JSON.stringify(response.data);
+    } else {
+      throw new Error('Invalid or empty response from Gmail Agent API');
     }
     
-    const draftResponse = response.data.response;
-    
-    return {
-      subject: `Re: ${emailDetails.subject}`,
-      body: draftResponse,
-      to: emailDetails.sender,
-      threadId: emailDetails.threadId,
-      originalEmailId: emailDetails.id
-    };
+    return draftResponse;
   } catch (error) {
     console.error('Error generating draft response:', error);
+    console.error('Error details:', error.response?.data || error.message);
     
     // Fallback to a generic response if the API call fails
-    return {
-      subject: `Re: Regarding your inquiry`,
-      body: "Thank you for your email. We're currently processing your request and will get back to you shortly with a more detailed response.\n\nBest regards,\nYour Insurance Team",
-      to: "recipient@example.com",
-      threadId: null,
-      originalEmailId: emailId
-    };
+    return "Thank you for your email. We're currently experiencing technical difficulties with our automated response system. A representative will review your message and get back to you shortly.\n\nBest regards,\nYour Insurance Team";
   }
 }
 

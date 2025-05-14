@@ -2,11 +2,17 @@ import { useState, useEffect } from 'react'
 
 const EmailDraftReview = ({ email, draft, onSend, onEdit, onCancel }) => {
   const [isEditing, setIsEditing] = useState(false)
-  const [editedDraft, setEditedDraft] = useState(draft || '')
+  const [editedDraft, setEditedDraft] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
   
   // Update editedDraft when draft prop changes
   useEffect(() => {
-    setEditedDraft(draft || '')
+    // Ensure draft is a string
+    const draftText = typeof draft === 'string' ? draft : 
+                     draft && typeof draft === 'object' && draft.body ? draft.body :
+                     JSON.stringify(draft);
+    setEditedDraft(draftText || '')
+    setIsLoading(false)
   }, [draft])
   
   const handleEditClick = () => {
@@ -19,8 +25,30 @@ const EmailDraftReview = ({ email, draft, onSend, onEdit, onCancel }) => {
   }
   
   const handleCancelEdit = () => {
-    setEditedDraft(draft || '')
+    // Ensure draft is a string
+    const draftText = typeof draft === 'string' ? draft : 
+                     draft && typeof draft === 'object' && draft.body ? draft.body :
+                     JSON.stringify(draft);
+    setEditedDraft(draftText || '')
     setIsEditing(false)
+  }
+  
+  // Function to display the draft appropriately
+  const displayDraft = () => {
+    if (!draft) {
+      return 'Loading draft response...';
+    }
+    
+    if (typeof draft === 'string') {
+      return draft;
+    }
+    
+    if (draft && typeof draft === 'object') {
+      if (draft.body) return draft.body;
+      return JSON.stringify(draft, null, 2);
+    }
+    
+    return 'Unable to display draft response';
   }
   
   return (
@@ -51,7 +79,7 @@ const EmailDraftReview = ({ email, draft, onSend, onEdit, onCancel }) => {
         <div>
           <div className="flex justify-between items-center mb-2">
             <h4 className="font-medium text-gray-700">Draft Response:</h4>
-            {!isEditing && (
+            {!isEditing && !isLoading && (
               <button 
                 onClick={handleEditClick}
                 className="px-3 py-1 text-sm text-blue-600 hover:text-blue-800 border border-blue-200 rounded-md hover:bg-blue-50"
@@ -87,7 +115,7 @@ const EmailDraftReview = ({ email, draft, onSend, onEdit, onCancel }) => {
           ) : (
             <div className="bg-white border border-gray-200 p-4 rounded-md text-gray-700 min-h-48">
               <pre className="whitespace-pre-wrap font-sans">
-                {draft || 'Loading draft response...'}
+                {displayDraft()}
               </pre>
             </div>
           )}
@@ -105,6 +133,7 @@ const EmailDraftReview = ({ email, draft, onSend, onEdit, onCancel }) => {
         <button
           onClick={onSend}
           className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          disabled={isLoading}
         >
           Send Response
         </button>
