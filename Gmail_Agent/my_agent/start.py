@@ -8,9 +8,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Dict, Any, Optional
 import json
 import os
+import sys
 import shutil
 import datetime
 import uuid
+import traceback
 from pydantic import BaseModel
 from qdrant_client import QdrantClient
 from qdrant_client.http.exceptions import UnexpectedResponse
@@ -20,8 +22,42 @@ from langchain_core.documents import Document
 from dotenv import load_dotenv
 from openai import OpenAI
 
-# Load environment variables
+# Load environment variables from .env file if present
 load_dotenv()
+
+# Configure path for imports - handle both local and Render deployment
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+
+# Different path configurations to try
+paths_to_try = [
+    current_dir,                         # Current directory
+    parent_dir,                          # Parent directory
+    os.path.dirname(parent_dir),         # Grandparent directory 
+    os.path.join(parent_dir, "my_agent") # my_agent in parent directory
+]
+
+# Add these paths to sys.path
+for path in paths_to_try:
+    if path not in sys.path:
+        sys.path.append(path)
+        print(f"Added to path: {path}")
+
+# Import state management immediately to check path configuration
+try:
+    from my_agent.utils.state import AgentState
+    print("Successfully imported AgentState - path configuration appears correct")
+except ImportError as e:
+    print(f"⚠️ Import error: {e}")
+    print("Attempting direct import...")
+    try:
+        # Try relative import as a fallback
+        sys.path.append('.')
+        from utils.state import AgentState
+        print("Successfully imported AgentState via direct import")
+    except ImportError as e2:
+        print(f"⚠️ Failed fallback import: {e2}")
+        print("WARNING: Will attempt imports at runtime when endpoint is called")
 
 app = FastAPI()
 
@@ -235,7 +271,6 @@ async def create_test_memories():
             "memory_ids": memory_ids
         }
     except Exception as e:
-        import traceback
         error_detail = traceback.format_exc()
         print(f"Error creating test memories: {e}\n{error_detail}")
         return {
@@ -287,7 +322,6 @@ async def get_memories(
                 
         # Define formatting function
         def get_relevant_memories(query: str, limit: int = 5) -> str:
-            import datetime
             memories = search_memory(query, limit=limit)
             
             if not memories:
@@ -324,7 +358,6 @@ async def get_memories(
         
         return response
     except Exception as e:
-        import traceback
         error_detail = f"Error retrieving memories: {str(e)}\n{traceback.format_exc()}"
         print(error_detail)
         return {
@@ -395,7 +428,6 @@ async def get_all_memories():
         
         return response
     except Exception as e:
-        import traceback
         error_detail = f"Error retrieving all memories: {str(e)}\n{traceback.format_exc()}"
         print(error_detail)
         return {
@@ -407,7 +439,7 @@ async def get_all_memories():
 @app.post("/generate-response", response_model=ResponseOutput)
 async def generate_response(email_input: EmailInput):
     """
-    Generate a response to an insurance-related email.
+    Generate a response to an insurance-related email using the complete Gmail Agent workflow.
     """
     try:
         # Log the incoming email data
@@ -415,60 +447,238 @@ async def generate_response(email_input: EmailInput):
         print(f"  Subject: {email_input.email.get('subject', 'No Subject')}")
         print(f"  From: {email_input.email.get('sender', 'Unknown')}")
         print(f"  Email ID: {email_input.email.get('id', 'No ID')}")
-        
+
         # Initialize OpenAI client
         openai_api_key = os.getenv("OPENAI_API_KEY")
         if not openai_api_key:
             raise HTTPException(status_code=500, detail="OpenAI API key not configured")
         
-        client = OpenAI(api_key=openai_api_key)
+        # Import the agent workflow nodes with error handling
+        try:
+            # First try the my_agent.utils style import (standard package import)
+            from my_agent.utils.nodes import classify_email as classify_email_node
+            from my_agent.utils.nodes import research as research_node
+            from my_agent.utils.nodes import memory_injection as memory_injection_node
+            from my_agent.utils.nodes import generate_response as generate_response_node
+            from my_agent.utils.nodes import evaluate_response_quality as evaluate_response_node
+            from my_agent.utils.nodes import flag_email as flag_email_node
+            from my_agent.utils.state import AgentState
+            from my_agent.utils.nodes import classification_router
+            print("Successfully imported modules using my_agent.utils.* path")
+        except ImportError as e:
+            print(f"Primary import failed: {e}")
+            try:
+                # Try direct imports as fallback (for different directory structures)
+                from utils.nodes import classify_email as classify_email_node
+                from utils.nodes import research as research_node
+                from utils.nodes import memory_injection as memory_injection_node
+                from utils.nodes import generate_response as generate_response_node
+                from utils.nodes import evaluate_response_quality as evaluate_response_node
+                from utils.nodes import flag_email as flag_email_node
+                from utils.state import AgentState
+                from utils.nodes import classification_router
+                print("Successfully imported modules using direct utils.* path")
+            except ImportError as e2:
+                print(f"Both import methods failed: {e2}")
+                # Fallback to simple response generation if workflow modules can't be imported
+                fallback_client = OpenAI(api_key=openai_api_key)
+                prompt = f"""
+                Generate a professional response to this insurance-related email:
+                Subject: {email_input.email.get('subject', 'No Subject')}
+                From: {email_input.email.get('sender', 'Unknown')}
+                Body: {email_input.email.get('body', '')}
+                """
+                response = fallback_client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[
+                        {"role": "system", "content": "You are an AI assistant specializing in insurance matters."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.7,
+                    max_tokens=1000
+                )
+                draft = response.choices[0].message.content.strip()
+                print("⚠️ USING FALLBACK RESPONSE GENERATOR due to import failures")
+                return {"draft": draft}
         
-        # Extract email details
-        subject = email_input.email.get("subject", "No Subject")
-        body = email_input.email.get("body", "")
-        sender = email_input.email.get("sender", "")
+        # Create a Gmail-style message object to match what the nodes expect
+        email_obj = {
+            'id': email_input.email.get('id', 'api_email_id'),
+            'threadId': email_input.email.get('threadId', 'api_thread_id'),
+            'payload': {
+                'headers': [
+                    {'name': 'Subject', 'value': email_input.email.get('subject', 'No Subject')},
+                    {'name': 'From', 'value': email_input.email.get('sender', 'sender@example.com')}
+                ],
+                'body': {'data': ''},
+                'parts': [{'mimeType': 'text/plain', 'body': {'data': ''}}]
+            }
+        }
         
-        # Prepare prompt for the AI
-        prompt = f"""
-        You are an AI assistant specializing in insurance matters. You need to help draft a response to the following email:
+        # If the email has a body, add it to the parts
+        if email_input.email.get('body'):
+            # Convert the body to base64 to match Gmail API format
+            import base64
+            body_b64 = base64.b64encode(email_input.email.get('body', '').encode('utf-8')).decode('utf-8')
+            email_obj['payload']['parts'][0]['body']['data'] = body_b64
         
-        From: {sender}
-        Subject: {subject}
-        
-        {body}
-        
-        Draft a professional and helpful response addressing the insurance-related issues in this email.
-        The response should:
-        1. Be polite and professional
-        2. Address the specific insurance matters mentioned
-        3. Provide clear information about policy coverage where applicable
-        4. Request any additional information if needed
-        5. Mention relevant laws or regulations if appropriate
-        
-        Write the response in first person, as if from the email recipient.
-        """
-        
-        # Generate response with OpenAI
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "You are an AI assistant specializing in insurance matters."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.7,
-            max_tokens=1000
-        )
-        
-        # Extract the generated draft
-        draft = response.choices[0].message.content.strip()
-        
-        # Log the generated response (first 100 chars)
-        print(f"Generated response: {draft[:100]}...")
-        
-        return {"draft": draft}
+        # Wrap everything in try/except blocks to handle potential errors in each component
+        try:
+            # Initialize agent state
+            state = AgentState(
+                new_email=email_obj,
+                initialized=True,
+                messages=[],
+                email_classification=None
+            )
+            
+            print("\n" + "="*80)
+            print("STARTING FULL GMAIL AGENT WORKFLOW")
+            print("="*80)
+            
+            # STEP 1: Classify the email as insurance-related or not
+            print("\nSTEP 1: CLASSIFYING EMAIL")
+            try:
+                state = classify_email_node(state)
+                classification = state.get('email_classification', 'Unknown')
+                print(f"Email classification: {classification}")
+                
+                # Check if email is insurance related
+                route = classification_router(state)
+                print(f"Classification route: {route}")
+                
+                if route == 'flag_email':
+                    print("Email is not insurance related. Skipping processing.")
+                    return {"draft": "This email does not appear to be insurance-related. A standard response would be appropriate."}
+            except Exception as classify_err:
+                print(f"Error in classification step: {classify_err}")
+                print("Continuing with workflow assuming email is insurance-related")
+            
+            # STEP 2: Perform research based on email content
+            print("\nSTEP 2: PERFORMING RESEARCH")
+            try:
+                state = research_node(state)
+                research_results = state.get('research_results', [])
+                print(f"Research complete. Found {len(research_results)} results.")
+            except Exception as research_err:
+                print(f"Error in research step: {research_err}")
+                print("Continuing workflow without research results")
+                state['research_results'] = []
+            
+            # STEP 3: Inject relevant memories
+            print("\nSTEP 3: INJECTING MEMORIES")
+            try:
+                state = memory_injection_node(state)
+                memory_context = state.get('memory_context', '')
+                if memory_context:
+                    print(f"Memory context injected. Length: {len(memory_context)}")
+                else:
+                    print("No relevant memories found.")
+            except Exception as memory_err:
+                print(f"Error in memory injection step: {memory_err}")
+                print("Continuing workflow without memory context")
+                state['memory_context'] = ''
+            
+            # STEP 4: Generate initial response
+            print("\nSTEP 4: GENERATING INITIAL RESPONSE")
+            try:
+                state = generate_response_node(state)
+                initial_response = state.get('llm_output', '')
+                print(f"Initial response generated. Length: {len(initial_response)}")
+            except Exception as response_err:
+                print(f"Error in response generation step: {response_err}")
+                print("Falling back to simple response generation")
+                
+                # Fallback response generation
+                client = OpenAI(api_key=openai_api_key)
+                prompt = f"""
+                Generate a professional response to this insurance-related email:
+                Subject: {email_input.email.get('subject', 'No Subject')}
+                From: {email_input.email.get('sender', 'Unknown')}
+                Body: {email_input.email.get('body', '')}
+                """
+                response = client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[
+                        {"role": "system", "content": "You are an AI assistant specializing in insurance matters."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.7,
+                    max_tokens=1000
+                )
+                initial_response = response.choices[0].message.content.strip()
+                state['llm_output'] = initial_response
+            
+            needs_more_research = False
+            
+            # STEP 5: Evaluate response quality
+            print("\nSTEP 5: EVALUATING RESPONSE")
+            try:
+                state = evaluate_response_node(state)
+                needs_more_research = state.get('needs_more_research', False)
+            except Exception as eval_err:
+                print(f"Error in evaluation step: {eval_err}")
+                print("Skipping evaluation due to error")
+            
+            # STEP 6: Perform additional research cycles if needed
+            final_response = initial_response
+            if needs_more_research:
+                print("\nSTEP 6: PERFORMING ADDITIONAL RESEARCH")
+                try:
+                    state = research_node(state)
+                    state = memory_injection_node(state)
+                    state = generate_response_node(state)
+                    state = evaluate_response_node(state)
+                    final_response = state.get('llm_output', initial_response)
+                    print(f"Response after additional research. Length: {len(final_response)}")
+                except Exception as additional_err:
+                    print(f"Error in additional research cycle: {additional_err}")
+                    print("Using initial response due to error in additional research")
+                    final_response = initial_response
+            else:
+                print("No additional research needed.")
+            
+            # STEP 7: Flag the email (would mark as processed in actual flow)
+            print("\nSTEP 7: FLAGGING EMAIL")
+            try:
+                state = flag_email_node(state)
+            except Exception as flag_err:
+                print(f"Error in flagging step: {flag_err}")
+            
+            print("\n" + "="*80)
+            print("GMAIL AGENT WORKFLOW COMPLETE")
+            print("="*80)
+            
+            # Return the final response
+            return {"draft": final_response}
+            
+        except Exception as workflow_err:
+            print(f"Workflow execution error: {workflow_err}")
+            print(traceback.format_exc())
+            
+            # Final fallback for any workflow errors
+            client = OpenAI(api_key=openai_api_key)
+            prompt = f"""
+            Generate a professional response to this insurance-related email:
+            Subject: {email_input.email.get('subject', 'No Subject')}
+            From: {email_input.email.get('sender', 'Unknown')}
+            Body: {email_input.email.get('body', '')}
+            """
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "You are an AI assistant specializing in insurance matters."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                max_tokens=1000
+            )
+            fallback_response = response.choices[0].message.content.strip()
+            return {"draft": fallback_response}
     
     except Exception as e:
-        print(f"Error generating response: {str(e)}")
+        print(f"Error generating response with full workflow: {str(e)}")
+        print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Error generating response: {str(e)}")
 
 # If running as a script, start an ASGI server
