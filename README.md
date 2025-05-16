@@ -1,4 +1,4 @@
-# Gmail Agent with Email Response Review UI
+# Gmail Agent
 
 A web application that connects to Gmail accounts, identifies insurance-related emails, and generates professional responses that users can review before sending.
 
