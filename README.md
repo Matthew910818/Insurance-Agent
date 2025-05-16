@@ -5,10 +5,9 @@ A web application that connects to Gmail accounts, identifies insurance-related 
 ## Project Structure
 
 - **Frontend**: React application deployed on Vercel
-  - URL: [scaling-doctor.vercel.app](https://scaling-doctor.vercel.app)
+  - URL: [scaling-doctor.vercel.app](https://insurance-agent-five.vercel.app)
   
 - **Backend**: Express API deployed on Render
-  - URL: [scaling-doctor.onrender.com](https://scaling-doctor.onrender.com)
   
 - **Database**: Supabase for user data and OAuth token storage
 
@@ -38,7 +37,7 @@ A web application that connects to Gmail accounts, identifies insurance-related 
    PORT=8000
    SUPABASE_URL=your_supabase_url
    SUPABASE_KEY=your_supabase_anon_key
-   FRONTEND_URL=https://scaling-doctor.vercel.app
+   FRONTEND_URL=https://insurance-agent-five.vercel.app
    GOOGLE_CLIENT_ID=your_google_client_id
    GOOGLE_CLIENT_SECRET=your_google_client_secret
    ```
@@ -50,62 +49,10 @@ A web application that connects to Gmail accounts, identifies insurance-related 
 2. Install dependencies: `npm install`
 3. Create a `.env` file with the following variables:
    ```
-   VITE_API_URL=https://scaling-doctor.onrender.com/api
+   VITE_API_URL=https://insurance-agent-lpe0.onrender.com
    ```
 4. Start the development server: `npm run dev`
 
-### Gmail OAuth Setup
-
-1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project 
-3. Navigate to APIs & Services > Credentials
-4. Configure the OAuth consent screen:
-   - Add "mail.google.com" to the scopes
-   - Add your domain as an authorized domain
-5. Create OAuth client ID credentials:
-   - Application type: Web application
-   - Authorized JavaScript origins: 
-     - https://scaling-doctor.vercel.app
-     - http://localhost:5173 (for development)
-   - Authorized redirect URIs:
-     - https://scaling-doctor.vercel.app/auth/callback
-     - http://localhost:5173/auth/callback (for development)
-6. Copy the Client ID and Client Secret to your backend `.env` file
-
-### Database Setup
-
-1. Create a Supabase project
-2. Create a `User Info` table with the following columns:
-   - `id` (int8, primary key)
-   - `created_at` (timestamp, default: now())
-   - `Name` (text)
-   - `Gmail Account` (text)
-   - `Phone Number` (text)
-   - `is_gmail_connected` (boolean, default: false)
-   - `oath_tokens` (jsonb)
-3. Get your Supabase URL and anon key from the API settings
-4. Add these credentials to your backend `.env` file
-
-## Deployment
-
-### Frontend (Vercel)
-
-1. Connect your GitHub repository to Vercel
-2. Set the following environment variables:
-   - `VITE_API_URL=https://scaling-doctor.onrender.com/api`
-3. Deploy the frontend directory
-
-### Backend (Render)
-
-1. Connect your GitHub repository to Render
-2. Set the following environment variables:
-   - `PORT=8000`
-   - `SUPABASE_URL=your_supabase_url`
-   - `SUPABASE_KEY=your_supabase_anon_key`
-   - `FRONTEND_URL=https://scaling-doctor.vercel.app`
-   - `GOOGLE_CLIENT_ID=your_google_client_id`
-   - `GOOGLE_CLIENT_SECRET=your_google_client_secret`
-3. Deploy the backend directory
 
 ## Usage
 

@@ -24,7 +24,7 @@ openai_api_key = os.getenv("OPENAI_API_KEY")
 if not openai_api_key:
     print("Warning: OPENAI_API_KEY not found in environment variables")
 else:
-    print(f"Using OpenAI API key: {openai_api_key[:4]}...{openai_api_key[-4:]}")
+    print(f"Using OpenAI API key")
 
 openai_client = None
 embeddings = None
@@ -57,21 +57,6 @@ else:
     print("Warning: Cannot initialize OpenAI client and vector store without an API key")
 
 def send_email(service, to, subject, message_text, user_id="me", thread_id=None, message_id=None):
-    """
-    Send an email, properly handling threading if thread_id or message_id are provided.
-    
-    Args:
-        service: Gmail API service instance
-        to: Email recipient
-        subject: Email subject
-        message_text: Email body content
-        user_id: User ID ('me' for authenticated user)
-        thread_id: Gmail thread ID for keeping emails in the same conversation
-        message_id: Message-ID of the email being replied to (for proper email threading)
-    
-    Returns:
-        The sent message data from the Gmail API
-    """
     email_match = re.search(r'<?([\w._%+-]+@[\w.-]+\.[a-zA-Z]{2,})>?', to)
     
     if email_match:
@@ -284,16 +269,6 @@ When answering questions about current events, policies, or time-sensitive infor
 
 
 def search_memory(query: str, limit: int = 3) -> List[Dict]:
-    """
-    Search the vector memory for relevant past research results.
-    
-    Args:
-        query: The search query string
-        limit: Maximum number of results to return
-        
-    Returns:
-        List of relevant documents with their metadata
-    """
     if not vectorstore:
         return []
     
@@ -313,18 +288,6 @@ def search_memory(query: str, limit: int = 3) -> List[Dict]:
         return []
 
 def extract_and_store_memory(email_content: str, search_results: List[Dict], response: str) -> str:
-    """
-    Extract important information from email content, search results, and agent's response
-    and store it in the vector database for future use.
-    
-    Args:
-        email_content: The content of the email
-        search_results: The research results obtained for this email
-        response: The agent's response to the email
-        
-    Returns:
-        The ID of the stored memory document or None if storage failed
-    """
     if not vectorstore or not openai_client:
         print("Cannot extract memory: vector store or OpenAI client not initialized")
         return None
@@ -396,16 +359,6 @@ def extract_and_store_memory(email_content: str, search_results: List[Dict], res
         return None
 
 def get_relevant_memories(query: str, limit: int = 5) -> str:
-    """
-    Retrieve relevant memories based on the current query and format them for inclusion in prompts.
-    
-    Args:
-        query: The query to search memories for
-        limit: Maximum number of memories to retrieve
-        
-    Returns:
-        Formatted string of relevant memories
-    """
     memories = search_memory(query, limit=limit)
     
     if not memories:
@@ -424,4 +377,3 @@ def get_relevant_memories(query: str, limit: int = 5) -> str:
         formatted_memories += "\n"
     
     return formatted_memories
-

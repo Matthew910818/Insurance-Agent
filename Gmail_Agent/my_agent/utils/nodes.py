@@ -25,9 +25,6 @@ import time
 
 
 def get_gmail_service():
-    """
-    Initializes the Gmail API service using credentials from environment variables
-    """
     print("=== CREDENTIAL DEBUG INFO ===")
     print(f"Current working directory: {os.getcwd()}")
     
@@ -94,12 +91,7 @@ def agent(state: AgentState):
     print("Agent node initialized the workflow")
     return state
 
-def check_for_new_emails(state: AgentState):
-    """
-    Checks for new emails in the Gmail inbox.
-    Returns state with new_email if found, or None if no new emails.
-    Handles initialization of processing for the first run.
-    """     
+def check_for_new_emails(state: AgentState):  
     if not state.get('initialized', False):
         state['initialized'] = True
         state['polling_cycle'] = 0 
@@ -242,12 +234,12 @@ def classify_email(state: AgentState):
     try:
         llm = get_llm()
         try:
-            system_prompt = """You are an assistant that classifies emails. If the email is medical insurance related, classify it as 'Yes', otherwise as 'No'.
+            system_prompt = """You are an assistant that classifies emails. If the email is medical debt insurance related, classify it as 'Yes', otherwise as 'No'.
 Yes - e.g., Insurance Denail Claim."""
             grade_prompt = ChatPromptTemplate.from_messages(
                 [
                     ("system", system_prompt),
-                    ("human", "Email content:\n\n{email_content}\n\nIs this an insurance related email? 'Yes' or 'No'?"),
+                    ("human", "Email content:\n\n{email_content}\n\nIs this an debt insurance related email? 'Yes' or 'No'?"),
                 ]
             )
             
@@ -261,7 +253,7 @@ Yes - e.g., Insurance Denail Claim."""
                 from langchain.chains.structured_output import create_structured_output_chain
                 
                 class GradeEmailV1(BaseModel):
-                    score: str = Field(description="Is the email medical insurance related? If yes -> 'Yes', if not -> 'No'")
+                    score: str = Field(description="Is the email medical debt insurance related? If yes -> 'Yes', if not -> 'No'")
                 
                 chain = create_structured_output_chain(GradeEmailV1, llm, grade_prompt)
                 result = chain.invoke({"email_content": email_content})
@@ -275,8 +267,8 @@ Yes - e.g., Insurance Denail Claim."""
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "You are an assistant that classifies emails. If the email is medical insurance related, answer 'Yes', otherwise answer 'No'."},
-                    {"role": "user", "content": f"Email content:\n\n{email_content}\n\nIs this an insurance related email? Answer only with 'Yes' or 'No'."}
+                    {"role": "system", "content": "You are an assistant that classifies emails. If the email is medical debt insurance related, answer 'Yes', otherwise answer 'No'."},
+                    {"role": "user", "content": f"Email content:\n\n{email_content}\n\nIs this an debt insurance related email? Answer only with 'Yes' or 'No'."}
                 ],
                 temperature=0
             )
@@ -476,10 +468,6 @@ Example: ["query 1", "query 2", "query 3"]"""),
     return state
 
 def memory_injection(state: AgentState):
-    """
-    Retrieve relevant memories based on the current email content and inject them into the state.
-    This function is similar to the memory_injection_node in the provided example.
-    """
     email = state.get('new_email')
     if not email:
         print("No email to find memories for.")
@@ -607,10 +595,6 @@ Only provide the complete email text. Do not include any explanations, headers, 
     return state
 
 def evaluate_response_quality(state: AgentState):
-    """
-    Evaluate if the response needs additional research or is ready to be sent.
-    This function decides whether to cycle back to research or move forward.
-    """
     if state.get('research_cycles', 0) >= 2:  
         print("\n" + "="*80)
         print("RESPONSE EVALUATION: MAX CYCLES REACHED")
@@ -903,16 +887,6 @@ def flag_email(state: AgentState):
     return state
 
 def response_evaluation_router(state: AgentState):
-    """
-    Router to decide whether to:
-    1. Evaluate the response quality
-    2. Perform another research cycle
-    3. Send the response as is
-    
-    This router is used for both generate_response and evaluate nodes.
-    - From generate_response: Only routes to 'evaluate' or 'send_response'
-    - From evaluate: Routes to 'research', 'send_response', or potentially self-cycle to 'evaluate'
-    """
     if state.get('research_cycles', 0) >= 2: 
         print("Maximum research cycles reached. Proceeding with current response.")
         state['needs_more_research'] = False
@@ -935,12 +909,6 @@ def response_evaluation_router(state: AgentState):
     return 'send_response'
 
 def email_polling_router(state: AgentState):
-    """
-    Router to decide whether to:
-    1. Continue polling for new emails
-    2. Process a found email
-    3. End the workflow when no emails found after max polling cycles
-    """
     if state.get('new_email'):
         print("New email found, proceeding to classification")
         return 'classify_email'
@@ -953,20 +921,6 @@ def email_polling_router(state: AgentState):
     return '__end__'
 
 def send_confirmed_email(draft_data):
-    """
-    Send an email using the draft data after user confirmation from the frontend.
-    
-    Args:
-        draft_data (dict): Dictionary containing email draft details
-            - to: Recipient email address
-            - subject: Email subject
-            - message_text: Email body text
-            - thread_id: Gmail thread ID for replies
-            - message_id: Message ID for replies
-            
-    Returns:
-        dict: Response with success status and details
-    """
     try:
         to = draft_data.get('to')
         subject = draft_data.get('subject')
@@ -1011,6 +965,3 @@ def send_confirmed_email(draft_data):
             "success": False,
             "error": str(e)
         }
-
-    
-    
