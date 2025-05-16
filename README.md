@@ -5,7 +5,7 @@ A web application that connects to Gmail accounts, identifies insurance-related 
 ## Project Structure
 
 - **Frontend**: React application deployed on Vercel
-  - URL: [scaling-doctor.vercel.app](https://insurance-agent-five.vercel.app)
+  - URL: [https://insurance-agent-five.vercel.app](https://insurance-agent-five.vercel.app)
   
 - **Backend**: Express API deployed on Render
   
