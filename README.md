@@ -2,6 +2,8 @@
 
 A web application that connects to Gmail accounts, identifies insurance-related emails, and generates professional responses that users can review before sending.
 
+Note: This Gmail agent is currently in the testing phase. Access is restricted to authorized users. If you’re interested in trying out the service or collaborating, please contact me at matthew910818@berkeley.edu.
+
 ## Project Structure
 
 - **Frontend**: React application deployed on Vercel
