@@ -49,16 +49,5 @@ workflow.add_edge('send_response', 'flag_email')
 workflow.add_edge('flag_email', 'check_emails') 
 workflow.set_entry_point('agent')
 
-print("""
-Initialized Insurance Agent with Memory Capabilities:
-- Continuous Email Polling: Repeatedly checks for new emails
-- Email Classification: Determines if emails are insurance-related
-- Memory Injection: Retrieves relevant past information for context
-- Research: Searches for up-to-date insurance information with adaptive cycles
-- Response Generation: Creates professional responses with memory context
-- Response Evaluation: Evaluates if additional research cycles are needed
-- Memory Extraction: Stores important conversation details for future use
-""")
-
 graph = workflow.compile()
 

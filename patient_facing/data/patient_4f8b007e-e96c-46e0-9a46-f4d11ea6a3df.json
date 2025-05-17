@@ -1,0 +1,100 @@
+{
+  "patient_info": {
+    "name": "Jane Doe",
+    "age": "42",
+    "location": "Seattle, WA",
+    "debt_amount": "$2,547.83",
+    "insurance": "Blue Cross Blue Shield (Out of Network)",
+    "hospital": "City General Hospital",
+    "service_date": "03/15/2023",
+    "bill_date": "04/20/2023",
+    "payment_plan": {
+      "total_amount": "$2",
+      "frequency": "293",
+      "amount_per_payment": "Monthly",
+      "start_date": "$191",
+      "proposed_at": "2025-03-22 16:44:57"
+    },
+    "last_call_summary": "The medical billing agent contacted the patient about an outstanding bill of $2,547.83 from City General Hospital. They discussed a 10% discount, reducing the balance to $2,293, and agreed on a payment plan of 12 equal monthly payments of about $191. The patient confirmed the arrangement, and the agent noted it down, promising to send a confirmation email with all the details.",
+    "call_history": [
+      {
+        "date": "2025-03-22 16:44:04",
+        "duration": "78 seconds",
+        "summary": "The medical billing agent contacted the patient about an outstanding bill of $2,547.83 from City General Hospital. They discussed a 10% discount, reducing the balance to $2,293, and agreed on a payment plan of 12 equal monthly payments of about $191. The patient confirmed the arrangement, and the agent noted it down, promising to send a confirmation email with all the details.",
+        "payment_arrangement": {
+          "total_amount": "$2",
+          "frequency": "293",
+          "amount_per_payment": "Monthly",
+          "start_date": "$191",
+          "proposed_at": "2025-03-22 16:44:57"
+        }
+      }
+    ]
+  },
+  "pdf_path": "uploads/4f8b007e-e96c-46e0-9a46-f4d11ea6a3df_Sample_Hospital_Bill.pdf",
+  "pdf_text": " \n\n \n \n \n\n",
+  "uploaded_at": "2025-03-22 16:43:57",
+  "conversation_history": [
+    {
+      "role": "agent",
+      "text": "Hello, this is Bargain Medical Billing. I'm calling about your outstanding medical bill from City General Hospital for $2,547.83. I'd like to discuss payment options and see if we can find a solution that works for your situation. Do you have a moment to talk about this?",
+      "timestamp": "2025-03-22 16:44:10"
+    },
+    {
+      "role": "patient",
+      "text": "What do you want?",
+      "timestamp": "2025-03-22 16:44:33"
+    },
+    {
+      "role": "agent",
+      "text": "I'm here to help you clear your medical bill from City General. I understand it can be daunting. We could start by discussing a possible 10% discount, reducing your balance to about $2,293. Does that sound manageable or should we explore further options?",
+      "timestamp": "2025-03-22 16:44:35"
+    },
+    {
+      "role": "patient",
+      "text": "Juventus FC. Knockers",
+      "timestamp": "2025-03-22 16:44:43"
+    },
+    {
+      "role": "agent",
+      "text": "Agent: I'm sorry, I didn't quite catch that. Regarding your bill, we can explore options like payment plans to make it more manageable. Would that be something you'd be interested in?",
+      "timestamp": "2025-03-22 16:44:45"
+    },
+    {
+      "role": "patient",
+      "text": "Responses. And then based on a certain ability,",
+      "timestamp": "2025-03-22 16:44:55"
+    },
+    {
+      "role": "agent",
+      "text": "I understand. Based on your ability, we could set up a plan splitting the discounted amount into 12 equal monthly payments of about $191. Is this arrangement feasible for you? To confirm, you'll pay Monthly 293 starting $191 for a total of $2. Is that correct? Please say yes or no.",
+      "timestamp": "2025-03-22 16:44:57"
+    },
+    {
+      "role": "patient",
+      "text": "Yes.",
+      "timestamp": "2025-03-22 16:45:11"
+    },
+    {
+      "role": "agent",
+      "text": "Great! I've recorded your payment plan of Monthly 293 starting $191. We'll send a confirmation email with all the details. Thank you for working with us today. Have a great day!",
+      "timestamp": "2025-03-22 16:45:12"
+    }
+  ],
+  "payment_arrangement": {
+    "total_amount": "$2",
+    "frequency": "293",
+    "amount_per_payment": "Monthly",
+    "start_date": "$191",
+    "proposed_at": "2025-03-22 16:44:57"
+  },
+  "call_sid": "CAf3ffee2f8df323e778368fb4de2e8ef2",
+  "call_start_time": "2025-03-22 16:44:04",
+  "proposed_payment_arrangement": {
+    "total_amount": "$2",
+    "frequency": "293",
+    "amount_per_payment": "Monthly",
+    "start_date": "$191",
+    "proposed_at": "2025-03-22 16:44:57"
+  }
+}

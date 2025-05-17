@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Patient Profile</h2>
+    
+    <div id="callStatus" class="alert d-none mb-4">
+        <span id="callStatusText"></span>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="card-title">Personal Information</h3>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Name:</strong> {{ patient.name }}</p>
+                    <p><strong>Age:</strong> {{ patient.age }}</p>
+                    <p><strong>Location:</strong> {{ patient.location }}</p>
+                    <p><strong>Insurance:</strong> {{ patient.insurance }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Hospital:</strong> {{ patient.hospital }}</p>
+                    <p><strong>Service Date:</strong> {{ patient.service_date }}</p>
+                    <p><strong>Bill Date:</strong> {{ patient.bill_date }}</p>
+                    <p><strong>Original Amount:</strong> {{ patient.debt_amount }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if patient.payment_plan %}
+    <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+            <h3 class="card-title">Active Payment Plan</h3>
+        </div>
+        <div class="card-body">
+            <p><strong>Total Amount:</strong> {{ patient.payment_plan.total_amount }}</p>
+            <p><strong>Payment Frequency:</strong> {{ patient.payment_plan.frequency }}</p>
+            <p><strong>Amount per Payment:</strong> {{ patient.payment_plan.amount_per_payment }}</p>
+            <p><strong>Start Date:</strong> {{ patient.payment_plan.start_date }}</p>
+            {% if patient.payment_plan.proposed_at %}
+            <p><strong>Arranged On:</strong> {{ patient.payment_plan.proposed_at }}</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if patient.last_call_summary %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="card-title">Latest Call Summary</h3>
+        </div>
+        <div class="card-body">
+            <p>{{ patient.last_call_summary }}</p>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if patient.call_history %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="card-title">Call History</h3>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Duration</th>
+                            <th>Summary</th>
+                            <th>Payment Arrangement</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for call in patient.call_history|reverse %}
+                        <tr>
+                            <td>{{ call.date }}</td>
+                            <td>{{ call.duration }}</td>
+                            <td>{{ call.summary }}</td>
+                            <td>
+                                {% if call.payment_arrangement %}
+                                {{ call.payment_arrangement.amount_per_payment }} 
+                                {{ call.payment_arrangement.frequency }}
+                                (Total: {{ call.payment_arrangement.total_amount }})
+                                {% else %}
+                                No arrangement made
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="card-title">Actions</h3>
+        </div>
+        <div class="card-body">
+            <button id="callButton" class="btn btn-primary" onclick="initiateCall('{{ session_id }}')">
+                Start New Call
+            </button>
+            <button class="btn btn-secondary ms-2" onclick="window.location.reload()">
+                Refresh Page
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+let callInProgress = false;
+let refreshInterval;
+
+function initiateCall(sessionId) {
+    if (callInProgress) return;
+    
+    callInProgress = true;
+    document.getElementById('callButton').disabled = true;
+    document.getElementById('callStatus').className = 'alert alert-info';
+    document.getElementById('callStatusText').innerText = 'Initiating call...';
+    
+    fetch(`/initiate-call/${sessionId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('callStatusText').innerText = 'Call initiated successfully! The page will refresh automatically when the call is completed.';
+            document.getElementById('callStatus').className = 'alert alert-success';
+            
+            // Start polling for updates
+            startPolling(sessionId);
+        } else {
+            document.getElementById('callStatusText').innerText = `Error: ${data.error}`;
+            document.getElementById('callStatus').className = 'alert alert-danger';
+            document.getElementById('callButton').disabled = false;
+            callInProgress = false;
+        }
+    })
+    .catch(error => {
+        document.getElementById('callStatusText').innerText = `Error: ${error.message}`;
+        document.getElementById('callStatus').className = 'alert alert-danger';
+        document.getElementById('callButton').disabled = false;
+        callInProgress = false;
+    });
+}
+
+function startPolling(sessionId) {
+    // Clear any existing interval
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+    }
+    
+    // Poll every 5 seconds to check if call is completed
+    refreshInterval = setInterval(() => {
+        checkCallStatus(sessionId);
+    }, 5000);
+}
+
+function checkCallStatus(sessionId) {
+    fetch(`/api/call-status/${sessionId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.call_completed) {
+                // Call is completed, refresh the page
+                clearInterval(refreshInterval);
+                window.location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error checking call status:', error);
+        });
+}
+</script>
+{% endblock %}

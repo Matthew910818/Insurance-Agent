@@ -1,0 +1,130 @@
+{
+  "patient_info": {
+    "name": "Jane Doe",
+    "age": "42",
+    "location": "Seattle, WA",
+    "debt_amount": "$2,547.83",
+    "insurance": "Blue Cross Blue Shield (Out of Network)",
+    "hospital": "City General Hospital",
+    "service_date": "03/15/2023",
+    "bill_date": "04/20/2023",
+    "payment_plan": {
+      "total_amount": "$2547.83",
+      "frequency": "monthly",
+      "amount_per_payment": "$212.32",
+      "start_date": "05/20/2023",
+      "proposed_at": "2025-03-22 16:05:01"
+    },
+    "last_call_summary": "The medical billing agent contacted the patient regarding an outstanding bill of $2,547.83 from City General Hospital. They discussed payment options, including a 10% discount for a lump sum payment of $2,293.05 or a 12-month payment plan with monthly payments of $212.32. The patient opted for the payment plan, agreeing to pay $212.32 monthly starting on 05/20/2023. A confirmation email with the payment plan details will be sent to the patient.",
+    "call_history": [
+      {
+        "date": "2025-03-22 16:02:55",
+        "duration": "166 seconds",
+        "summary": "The medical billing agent contacted the patient regarding an outstanding bill of $2,547.83 from City General Hospital. They discussed payment options, including a 10% discount for a lump sum payment of $2,293.05 or a 12-month payment plan with monthly payments of $212.32. The patient opted for the payment plan, agreeing to pay $212.32 monthly starting on 05/20/2023. A confirmation email with the payment plan details will be sent to the patient.",
+        "payment_arrangement": {
+          "total_amount": "$2547.83",
+          "frequency": "monthly",
+          "amount_per_payment": "$212.32",
+          "start_date": "05/20/2023",
+          "proposed_at": "2025-03-22 16:05:01"
+        }
+      }
+    ]
+  },
+  "pdf_path": "uploads/30d337df-d984-46c0-bbb1-e4b0cc0e4035_Sample_Hospital_Bill.pdf",
+  "pdf_text": " \n\n \n \n \n\n",
+  "uploaded_at": "2025-03-22 16:02:53",
+  "conversation_history": [
+    {
+      "role": "agent",
+      "text": "Hello, this is Bargain Medical Billing. I'm calling about your outstanding medical bill from City General Hospital for $2,547.83. I'd like to discuss payment options and see if we can find a solution that works for your situation. Do you have a moment to talk about this?",
+      "timestamp": "2025-03-22 16:03:02"
+    },
+    {
+      "role": "patient",
+      "text": "Yes.",
+      "timestamp": "2025-03-22 16:03:29"
+    },
+    {
+      "role": "agent",
+      "text": "That's great, Jane. I understand that these bills can be overwhelming. Could you share a bit about your current financial situation so we can explore suitable payment options together?",
+      "timestamp": "2025-03-22 16:03:31"
+    },
+    {
+      "role": "patient",
+      "text": "Yeah, I don't have much money right now.",
+      "timestamp": "2025-03-22 16:03:47"
+    },
+    {
+      "role": "agent",
+      "text": "I understand, Jane. Let's see if we can lighten the load a bit. How about a 10% discount, bringing your total to $2,293.05? Or, would a payment plan be more manageable for you?",
+      "timestamp": "2025-03-22 16:03:49"
+    },
+    {
+      "role": "patient",
+      "text": "Star Wars for me.",
+      "timestamp": "2025-03-22 16:04:09"
+    },
+    {
+      "role": "agent",
+      "text": "I'm sorry, Jane, I didn't quite catch that. Just to clarify, are you considering a payment plan or a lump sum payment after the 10% discount?",
+      "timestamp": "2025-03-22 16:04:11"
+    },
+    {
+      "role": "patient",
+      "text": "Lump sum payment.",
+      "timestamp": "2025-03-22 16:04:25"
+    },
+    {
+      "role": "agent",
+      "text": "That's great, Jane. So with the 10% discount, your lump sum payment would be $2,293.05. Can we proceed with this plan?",
+      "timestamp": "2025-03-22 16:04:26"
+    },
+    {
+      "role": "patient",
+      "text": "Step.",
+      "timestamp": "2025-03-22 16:04:44"
+    },
+    {
+      "role": "agent",
+      "text": "I see, Jane. To ensure I understood correctly, are you suggesting stepping up the discount to make the lump sum payment more manageable?",
+      "timestamp": "2025-03-22 16:04:45"
+    },
+    {
+      "role": "patient",
+      "text": "No, I thought the old payment plan works.",
+      "timestamp": "2025-03-22 16:04:59"
+    },
+    {
+      "role": "agent",
+      "text": "Of course, Jane. Let's revisit the previous plan. How about a 12-month payment plan with monthly payments of $212.32? To confirm, you'll pay $212.32 monthly starting 05/20/2023 for a total of $2547.83. Is that correct? Please say yes or no.",
+      "timestamp": "2025-03-22 16:05:01"
+    },
+    {
+      "role": "patient",
+      "text": "Yes.",
+      "timestamp": "2025-03-22 16:05:31"
+    },
+    {
+      "role": "agent",
+      "text": "Great! I've recorded your payment plan of $212.32 monthly starting 05/20/2023. We'll send a confirmation email with all the details. Thank you for working with us today. Have a great day!",
+      "timestamp": "2025-03-22 16:05:32"
+    }
+  ],
+  "payment_arrangement": {
+    "total_amount": "$2547.83",
+    "frequency": "monthly",
+    "amount_per_payment": "$212.32",
+    "start_date": "05/20/2023",
+    "proposed_at": "2025-03-22 16:05:01"
+  },
+  "call_sid": "CAd0ab8748ca3cbeb87d8d34d682e9de9d",
+  "call_start_time": "2025-03-22 16:02:55",
+  "proposed_payment_arrangement": {
+    "total_amount": "$2547.83",
+    "frequency": "monthly",
+    "amount_per_payment": "$212.32",
+    "start_date": "05/20/2023",
+    "proposed_at": "2025-03-22 16:05:01"
+  }
+}

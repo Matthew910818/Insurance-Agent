@@ -1,0 +1,51 @@
+{
+  "patient_info": {
+    "name": "Jane Doe",
+    "age": "42",
+    "location": "Seattle, WA",
+    "debt_amount": "$2,547.83",
+    "insurance": "Blue Cross Blue Shield (Out of Network)",
+    "hospital": "City General Hospital",
+    "service_date": "03/15/2023",
+    "bill_date": "04/20/2023",
+    "payment_plan": null,
+    "last_call_summary": "The medical billing agent from Bargain Medical Billing contacted the patient regarding an outstanding bill of $2,547.83 from City General Hospital. The agent discussed payment options with the patient, who expressed a preference for a monthly payment plan due to financial constraints. An agreement was reached for a payment plan of $106 per month for 24 months, starting from June 1, 2023. The next step is for the patient to begin making monthly payments according to the agreed plan.",
+    "call_history": [
+      {
+        "date": "2025-03-22 15:35:43",
+        "duration": "85 seconds",
+        "summary": "The medical billing agent from Bargain Medical Billing contacted the patient regarding an outstanding bill of $2,547.83 from City General Hospital. The agent discussed payment options with the patient, who expressed a preference for a monthly payment plan due to financial constraints. An agreement was reached for a payment plan of $106 per month for 24 months, starting from June 1, 2023. The next step is for the patient to begin making monthly payments according to the agreed plan.",
+        "payment_arrangement": null
+      }
+    ]
+  },
+  "uploaded_at": "2025-03-22 15:35:39",
+  "conversation_history": [
+    {
+      "role": "agent",
+      "text": "Hello, this is Bargain Medical Billing. I'm calling about your outstanding medical bill from City General Hospital for $2,547.83. I'd like to discuss payment options and see if we can find a solution that works for your situation. Do you have a moment to talk about this?",
+      "timestamp": "2025-03-22 15:35:51"
+    },
+    {
+      "role": "patient",
+      "text": "Yes.",
+      "timestamp": "2025-03-22 15:36:17"
+    },
+    {
+      "role": "agent",
+      "text": "That's great, Jane. I'd like to first understand your financial situation. Are you currently able to make a lump sum payment towards this bill, or would you prefer a payment plan?",
+      "timestamp": "2025-03-22 15:36:19"
+    },
+    {
+      "role": "patient",
+      "text": "I don't have too much money right now, but I can contribute a little bit every month.",
+      "timestamp": "2025-03-22 15:36:39"
+    },
+    {
+      "role": "agent",
+      "text": "I understand, Jane. We can definitely work with a monthly payment plan. How about a plan of $106 per month for 24 months, starting from next month? [PAYMENT_PLAN: $2,544, monthly, $106, 06/01/2023] Would that be manageable for you?",
+      "timestamp": "2025-03-22 15:36:41"
+    }
+  ],
+  "payment_arrangement": null
+}

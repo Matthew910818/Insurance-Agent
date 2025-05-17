@@ -1,0 +1,21 @@
+{
+  "name": "bargain",
+  "version": "1.0.0",
+  "description": "Medical Debt Negotiation Agent",
+  "main": "app.py",
+  "scripts": {
+    "start": "python app.py",
+    "dev": "python app.py",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/luna-chen/bargAIn.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/luna-chen/bargAIn/issues"
+  },
+  "homepage": "https://github.com/luna-chen/bargAIn#readme"
+}
